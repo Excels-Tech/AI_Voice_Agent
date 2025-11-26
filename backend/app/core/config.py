@@ -29,7 +29,9 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     
     # Database
-    DATABASE_URL: str = "postgresql://voiceai:password@localhost:5432/voiceai"
+    DATABASE_URL: str = Field(
+        default="sqlite:///./voiceai.db"
+    )
     
     # CORS
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:5173"]
