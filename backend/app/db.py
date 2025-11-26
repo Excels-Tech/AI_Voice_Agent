@@ -27,6 +27,10 @@ LOCAL_SQLITE_URL = f"sqlite:///{LOCAL_SQLITE_PATH}"
 
 def _create_engine(db_url: str) -> "Engine":
     """Create a SQLAlchemy engine with sensible defaults per backend."""
+    # Prefer psycopg (v3) driver explicitly to avoid psycopg2 binary issues on Render.
+    if db_url.startswith("postgresql://") and "+psycopg" not in db_url:
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+
     engine_kwargs = {
         "echo": settings.SQLALCHEMY_ECHO,
     }
