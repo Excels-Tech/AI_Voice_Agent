@@ -1,0 +1,27 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+build/
+
+# Env & data
+.env
+*.db
+voiceai.db
+
+# Logs
+*.log
+
+# Compiled
+*.py[cod]
+*$py.class

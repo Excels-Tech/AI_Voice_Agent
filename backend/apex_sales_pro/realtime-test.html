@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Apex Sales Pro – Realtime Voice Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      line-height: 1.5;
+    }
+    button {
+      padding: 0.6rem 1rem;
+      border-radius: 6px;
+      border: none;
+      margin-right: 0.5rem;
+      margin-top: 0.5rem;
+      cursor: pointer;
+      background-color: #2457ff;
+      color: #fff;
+    }
+    button.secondary {
+      background: #333;
+    }
+    button.danger {
+      background: #bf1e2d;
+    }
+    #log {
+      background: #111;
+      color: #0f0;
+      padding: 1rem;
+      border-radius: 8px;
+      min-height: 200px;
+      max-height: 350px;
+      overflow-y: auto;
+      font-size: 0.9rem;
+    }
+    .row {
+      margin-bottom: 1rem;
+    }
+    audio {
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <h1>Apex Sales Pro – Realtime Voice Test</h1>
+  <p>
+    This page connects to <code>/ws/agents/apex-sales-pro/realtime</code> and streams microphone audio into the
+    OpenAI Realtime model through your FastAPI bridge. Works best in Chrome/Edge.
+  </p>
+
+  <div class="row">
+    <button onclick="connectSocket()">1. Connect</button>
+    <button class="secondary" onclick="disconnectSocket()">Disconnect</button>
+  </div>
+
+  <div class="row">
+    <button onclick="startCapture()">2. Start Talking</button>
+    <button class="secondary" onclick="stopCaptureAndSend()">3. Stop & Ask Apex</button>
+    <button class="secondary" onclick="sendSilentFrame()">Add 100ms Silent Frame</button>
+  </div>
+
+  <div class="row">
+    <button class="secondary" onclick="requestResponse()">Request Response (without new audio)</button>
+    <button class="danger" onclick="clearOutput()">Clear Output</button>
+  </div>
+
+  <h3>Agent Transcript</h3>
+  <div id="transcript">—</div>
+
+  <h3>Agent Audio</h3>
+  <audio id="agentAudio" controls></audio>
+
+  <h3>Debug Log</h3>
+  <pre id="log"></pre>
+
+  <script>
+    const WS_URL = "ws://127.0.0.1:8000/ws/agents/apex-sales-pro/realtime";
+    const TARGET_SAMPLE_RATE = 24000;
+    let ws;
+    let audioContext;
+    let mediaStream;
+    let processor;
+    let sourceNode;
+    let gainNode;
+    let audioChunks = [];
+    let pendingAudioUpdate = false;
+    let transcriptText = "";
+    let bufferedFrameCount = 0;
+    let totalSamplesCaptured = 0;
+    let recordedPcmBuffers = [];
+
+    function log(message) {
+      const logEl = document.getElementById("log");
+      const ts = new Date().toISOString();
+      logEl.textContent += `[${ts}] ${message}\n`;
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function connectSocket() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        log("Already connected.");
+        return;
+      }
+      ws = new WebSocket(WS_URL);
+      ws.onopen = () => log("WebSocket connected.");
+      ws.onclose = (evt) => log(`WebSocket closed (${evt.code}): ${evt.reason || ""}`);
+      ws.onerror = (err) => log(`WebSocket error: ${err.message || err}`);
+      ws.onmessage = handleSocketMessage;
+    }
+
+    function disconnectSocket() {
+      if (ws) {
+        ws.close();
+        ws = undefined;
+      }
+    }
+
+    async function startCapture() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log("Connect the socket first.");
+        return;
+      }
+      if (processor) {
+        log("Capture already running.");
+        return;
+      }
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioContext = new AudioContext({ sampleRate: TARGET_SAMPLE_RATE });
+      log(`AudioContext sample rate: ${audioContext.sampleRate} Hz.`);
+      if (audioContext.state === "suspended") {
+        await audioContext.resume();
+        log("AudioContext resumed after user gesture.");
+      }
+      sourceNode = audioContext.createMediaStreamSource(mediaStream);
+      processor = audioContext.createScriptProcessor(4096, 1, 1);
+      gainNode = audioContext.createGain();
+      gainNode.gain.value = 0; // avoid audio playback locally
+      recordedPcmBuffers = [];
+      bufferedFrameCount = 0;
+      totalSamplesCaptured = 0;
+      let announcedFrame = false;
+      processor.onaudioprocess = (event) => {
+        const input = event.inputBuffer.getChannelData(0);
+        const pcmBuffer = floatTo16BitPCM(input);
+        recordedPcmBuffers.push(pcmBuffer.buffer.slice(0));
+        bufferedFrameCount += 1;
+        totalSamplesCaptured += input.length;
+        if (!announcedFrame) {
+          announcedFrame = true;
+          log("Captured first audio frame.");
+        }
+        if (bufferedFrameCount <= 5 || bufferedFrameCount % 50 === 0) {
+          const approxMs = ((totalSamplesCaptured / TARGET_SAMPLE_RATE) * 1000).toFixed(1);
+          log(`Buffered ${bufferedFrameCount} frames (~${approxMs} ms).`);
+        }
+      };
+      sourceNode.connect(processor);
+      processor.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      log("Mic capture started.");
+    }
+
+    function stopCaptureAndSend() {
+      if (processor) {
+        processor.disconnect();
+        gainNode.disconnect();
+        sourceNode.disconnect();
+        processor = null;
+      }
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((track) => track.stop());
+        mediaStream = null;
+      }
+      if (audioContext) {
+        audioContext.close();
+        audioContext = null;
+      }
+      const approxMs = ((totalSamplesCaptured / TARGET_SAMPLE_RATE) * 1000).toFixed(1);
+      log(
+        `Stopping capture. buffered frames=${bufferedFrameCount}, approxAudio=${approxMs} ms.`
+      );
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log("Mic capture stopped; WebSocket not connected.");
+        recordedPcmBuffers = [];
+        bufferedFrameCount = 0;
+        totalSamplesCaptured = 0;
+        return;
+      }
+      if (!recordedPcmBuffers.length) {
+        log("No audio frames captured; skipping conversation item.");
+        return;
+      }
+      const merged = mergePcmChunks(recordedPcmBuffers);
+      const base64 = arrayBufferToBase64(merged);
+      sendJSON({
+        type: "conversation.item.create",
+        item: {
+          type: "message",
+          role: "user",
+          content: [{ type: "input_audio", audio: base64 }],
+        },
+      });
+      requestResponse();
+      log(
+        `Mic capture stopped and uploaded ${recordedPcmBuffers.length} frames (~${approxMs} ms) as a conversation audio item.`
+      );
+      recordedPcmBuffers = [];
+      bufferedFrameCount = 0;
+      totalSamplesCaptured = 0;
+    }
+
+    function requestResponse() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        log("WebSocket not connected.");
+        return;
+      }
+      sendJSON({
+        type: "response.create",
+        response: {
+          modalities: ["text", "audio"],
+          conversation: "auto",
+        },
+      });
+      log("Requested agent response.");
+    }
+
+    function sendSilentFrame() {
+      if (!processor) {
+        log("Start talking before injecting a silent frame.");
+        return;
+      }
+      const sampleCount = Math.round(TARGET_SAMPLE_RATE * 0.12); // 120 ms
+      const arr = new Float32Array(sampleCount);
+      const buffer = floatTo16BitPCM(arr);
+      recordedPcmBuffers.push(buffer.buffer.slice(0));
+      totalSamplesCaptured += sampleCount;
+      bufferedFrameCount += 1;
+      log("Injected silent audio frame into the pending recording.");
+    }
+
+    function sendJSON(payload) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(payload));
+      }
+    }
+
+    function handleSocketMessage(event) {
+      if (typeof event.data === "string") {
+        try {
+          const message = JSON.parse(event.data);
+          handleRealtimeEvent(message);
+        } catch (err) {
+          log("Non-JSON text message received.");
+        }
+      } else if (event.data instanceof ArrayBuffer) {
+        log(`Binary frame received (${event.data.byteLength} bytes).`);
+      } else {
+        log("Unknown message type received.");
+      }
+    }
+
+    function handleRealtimeEvent(msg) {
+      switch (msg.type) {
+        case "response.created":
+          audioChunks = [];
+          pendingAudioUpdate = false;
+          break;
+        case "response.text.delta":
+        case "response.output_text.delta": // legacy fallback
+          transcriptText += msg.delta;
+          document.getElementById("transcript").textContent = transcriptText;
+          break;
+        case "response.audio.delta":
+        case "response.output_audio.delta": // legacy fallback
+          audioChunks.push(base64ToArrayBuffer(msg.delta));
+          pendingAudioUpdate = true;
+          break;
+        case "response.done":
+        case "response.completed":
+          log("Agent response completed.");
+          if (pendingAudioUpdate) {
+            updateAudioPlayer();
+            pendingAudioUpdate = false;
+          }
+          break;
+        case "error":
+          log(`Realtime error: ${msg.error?.message || JSON.stringify(msg)}`);
+          break;
+        default:
+          // For debugging uncomment:
+          // log(`Event: ${msg.type}`);
+          break;
+      }
+    }
+
+    function updateAudioPlayer() {
+      const blob = pcmChunksToWav(audioChunks, 24000);
+      const url = URL.createObjectURL(blob);
+      const audioEl = document.getElementById("agentAudio");
+      audioEl.src = url;
+      audioEl.play().catch(() => {});
+    }
+
+    function clearOutput() {
+      transcriptText = "";
+      audioChunks = [];
+      document.getElementById("transcript").textContent = "—";
+      document.getElementById("agentAudio").removeAttribute("src");
+      log("Cleared transcript/audio.");
+    }
+
+    function floatTo16BitPCM(float32Array) {
+      const buffer = new ArrayBuffer(float32Array.length * 2);
+      const view = new DataView(buffer);
+      for (let i = 0; i < float32Array.length; i++) {
+        const s = Math.max(-1, Math.min(1, float32Array[i]));
+        view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+      }
+      return view;
+    }
+
+    function arrayBufferToBase64(buffer) {
+      const bytes = new Uint8Array(buffer);
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary);
+    }
+
+    function base64ToArrayBuffer(base64) {
+      const binaryString = atob(base64);
+      const len = binaryString.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes.buffer;
+    }
+
+    function pcmChunksToWav(buffers, sampleRate = 24000) {
+      const totalLength = buffers.reduce((sum, buf) => sum + buf.byteLength, 0);
+      const wavBuffer = new ArrayBuffer(44 + totalLength);
+      const view = new DataView(wavBuffer);
+      // RIFF chunk descriptor
+      writeString(view, 0, "RIFF");
+      view.setUint32(4, 36 + totalLength, true);
+      writeString(view, 8, "WAVE");
+      // fmt sub-chunk
+      writeString(view, 12, "fmt ");
+      view.setUint32(16, 16, true); // Subchunk1Size
+      view.setUint16(20, 1, true); // PCM
+      view.setUint16(22, 1, true); // Mono
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true); // Byte rate
+      view.setUint16(32, 2, true); // Block align
+      view.setUint16(34, 16, true); // Bits per sample
+      // data sub-chunk
+      writeString(view, 36, "data");
+      view.setUint32(40, totalLength, true);
+      let offset = 44;
+      buffers.forEach((buf) => {
+        const bytes = new Uint8Array(buf);
+        for (let i = 0; i < bytes.length; i++, offset++) {
+          view.setUint8(offset, bytes[i]);
+        }
+      });
+      return new Blob([wavBuffer], { type: "audio/wav" });
+    }
+
+    function writeString(view, offset, string) {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    }
+
+    function mergePcmChunks(buffers) {
+      const totalLength = buffers.reduce((sum, buf) => sum + buf.byteLength, 0);
+      const merged = new Uint8Array(totalLength);
+      let offset = 0;
+      buffers.forEach((buf) => {
+        merged.set(new Uint8Array(buf), offset);
+        offset += buf.byteLength;
+      });
+      return merged.buffer;
+    }
+  </script>
+</body>
+</html>

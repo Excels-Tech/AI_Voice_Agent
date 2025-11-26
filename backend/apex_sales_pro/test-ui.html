@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Apex Sales Pro – Test Console</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2rem;
+      line-height: 1.4;
+    }
+    .card {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
+      max-width: 840px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 80px;
+    }
+    label {
+      display: block;
+      margin-top: 0.75rem;
+      font-weight: bold;
+    }
+    button {
+      margin-top: 0.75rem;
+      margin-right: 0.5rem;
+      padding: 0.6rem 1.2rem;
+      border-radius: 6px;
+      border: none;
+      background: #2457ff;
+      color: #fff;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: #444;
+    }
+    pre {
+      background: #111;
+      color: #0f0;
+      padding: 1rem;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 0.9rem;
+      max-height: 320px;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>Apex Sales Pro – Manual Test Console</h1>
+  <p>
+    Run quick text or voice turns without Postman. The console builds the same payload the backend demo
+    endpoints use, but lets you change the prospect message and channel.
+  </p>
+
+  <div class="card">
+    <label for="prospectMessage">Prospect message</label>
+    <textarea id="prospectMessage">Hey, we’re evaluating automation tools for onboarding.</textarea>
+
+    <label for="channelSelect">Channel</label>
+    <select id="channelSelect">
+      <option value="phone" selected>Phone</option>
+      <option value="video">Video</option>
+      <option value="chat">Chat</option>
+      <option value="meeting">Meeting</option>
+    </select>
+
+    <div class="row">
+      <button onclick="runChatTurn()">Run Chat (text response)</button>
+      <button class="secondary" onclick="runVoiceTurn()">Play Voice Response</button>
+      <button class="secondary" onclick="callDemo('chat-demo')">Call /chat-demo</button>
+      <button class="secondary" onclick="callDemo('chat-voice-demo')">Call /chat-voice-demo</button>
+    </div>
+
+    <p id="status"></p>
+  </div>
+
+  <div class="card">
+    <h3>Text Response</h3>
+    <pre id="responseArea">Press “Run Chat” to see the JSON response here.</pre>
+  </div>
+
+  <div class="card">
+    <h3>Voice Response</h3>
+    <audio id="voicePlayer" controls preload="none" style="width:100%;">
+      Your browser does not support the audio element.
+    </audio>
+    <p><strong>Transcript:</strong> <span id="voiceTranscript">—</span></p>
+  </div>
+
+  <script>
+    const API_BASE = "http://127.0.0.1:8000";
+
+    const basePayload = {
+      agent: {
+        name: "Apex Sales Pro",
+        active: true,
+        model: "gpt-4.1",
+        voice: "nova",
+        deployment_channels: ["phone", "video", "chat", "meeting"],
+        temperature: 0.6,
+        top_p: 0.9,
+        memory_turns: 15,
+        multi_language: true,
+        persona: {
+          tier: "Platinum",
+          description: "Platinum sales closer focused on outbound demos and contracts; confident tone, assumptive closing, ROI storytelling, strong objection handling.",
+          tone: "confident, consultative, assumptive-closing",
+          closing_style: "assumptive close with clear next steps (demo / contract)",
+          storytelling_focus: "ROI, business impact, and time-to-value"
+        },
+        advanced: {
+          max_call_duration_seconds: 900,
+          max_retries: 3,
+          voicemail_strategy: "drop_voicemail_if_no_answer",
+          record_calls: true,
+          transcribe_calls: true,
+          retain_days: 30,
+          rate_limit_per_minute: 30,
+          fallback_routing: "transfer_to_AE_if_blocked",
+          webhook_urls: {}
+        },
+        integrations: {
+          crm_provider: "HubSpot",
+          crm_auto_sync: true,
+          lead_scoring_enabled: true,
+          conferencing_platforms: ["Zoom", "Google Meet", "Teams"],
+          default_meeting_link_template: "https://meet.example.com/{owner_id}/{lead_id}"
+        },
+        ab_test_variant: "A"
+      },
+      lead: {
+        lead_id: "LEAD-DEMO-001",
+        name: "Jordan",
+        company: "Northwind Analytics",
+        role: "COO",
+        region: "USA",
+        email: "jordan@nwanalytics.com",
+        phone: "+15551231234",
+        estimated_deal_size: 25000,
+        currency: "USD",
+        crm_id: "HS-12345",
+        pain_points: ["manual onboarding", "slow approvals"],
+        current_tools: "HubSpot, Google Sheets",
+        notes: "Inbound demo request",
+        preferred_language: "en"
+      },
+      settings: {
+        channel: "phone",
+        call_id: "CALL-DEMO-001",
+        call_attempt: 1,
+        allow_negotiation: true,
+        target_next_step: "book_demo",
+        max_agent_response_tokens: 600
+      },
+      history: [
+        {
+          role: "prospect",
+          content: "Hi there!",
+          sentiment: "neutral",
+          timestamp: "2025-11-18T00:00:00Z"
+        }
+      ],
+      custom_variables: {}
+    };
+
+    function buildPayload() {
+      const payload = JSON.parse(JSON.stringify(basePayload));
+      const message = document.getElementById("prospectMessage").value.trim();
+      const channel = document.getElementById("channelSelect").value;
+      const stamp = Date.now();
+
+      payload.settings.channel = channel;
+      payload.settings.call_id = `CALL-DEMO-${stamp}`;
+      payload.lead.lead_id = `LEAD-DEMO-${stamp}`;
+      payload.history = [
+        {
+          role: "prospect",
+          content: message || "Hey, we are evaluating automation tools.",
+          sentiment: "neutral",
+          timestamp: new Date().toISOString()
+        }
+      ];
+      return payload;
+    }
+
+    async function runChatTurn() {
+      try {
+        setStatus("Calling /chat …");
+        const payload = buildPayload();
+        const res = await fetch(`${API_BASE}/agents/apex-sales-pro/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        document.getElementById("responseArea").textContent = JSON.stringify(data, null, 2);
+        setStatus("Text response received.");
+      } catch (err) {
+        console.error(err);
+        setStatus("Error calling /chat. Check console.");
+      }
+    }
+
+    async function runVoiceTurn() {
+      try {
+        setStatus("Calling /chat-voice …");
+        const payload = buildPayload();
+        const res = await fetch(`${API_BASE}/agents/apex-sales-pro/chat-voice`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const arrayBuffer = await res.arrayBuffer();
+        const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
+        const audio = document.getElementById("voicePlayer");
+        const url = URL.createObjectURL(blob);
+        audio.src = url;
+        audio.play();
+        document.getElementById("voiceTranscript").textContent = res.headers.get("X-Agent-Message") || "(missing header)";
+        setStatus("Voice response ready.");
+      } catch (err) {
+        console.error(err);
+        setStatus("Error calling /chat-voice. Check console.");
+      }
+    }
+
+    async function callDemo(kind) {
+      const endpoint = kind === "chat-demo" ? "chat-demo" : "chat-voice-demo";
+      const isVoice = endpoint.includes("voice");
+      try {
+        setStatus(`Calling /${endpoint} …`);
+        const res = await fetch(`${API_BASE}/agents/apex-sales-pro/${endpoint}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" }
+        });
+        if (isVoice) {
+          const arrayBuffer = await res.arrayBuffer();
+          const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
+          const url = URL.createObjectURL(blob);
+          const audio = document.getElementById("voicePlayer");
+          audio.src = url;
+          audio.play();
+          document.getElementById("voiceTranscript").textContent = res.headers.get("X-Agent-Message") || "(missing header)";
+          setStatus("/chat-voice-demo played.");
+        } else {
+          const data = await res.json();
+          document.getElementById("responseArea").textContent = JSON.stringify(data, null, 2);
+          setStatus("/chat-demo response received.");
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus(`Error calling /${endpoint}. Check console.`);
+      }
+    }
+
+    function setStatus(text) {
+      document.getElementById("status").textContent = text;
+    }
+  </script>
+</body>
+</html>

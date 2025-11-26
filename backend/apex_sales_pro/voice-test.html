@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Apex Sales Pro – Voice Test</title>
+</head>
+<body>
+  <h1>Apex Sales Pro – Voice Test</h1>
+  <button onclick="callAgent()">Play Agent Response</button>
+
+  <script>
+    async function callAgent() {
+      const payload = {
+        agent: {
+          name: "Apex Sales Pro",
+          active: true,
+          model: "gpt-4.1",
+          voice: "nova",
+          deployment_channels: ["phone", "video", "chat", "meeting"],
+          temperature: 0.6,
+          top_p: 0.9,
+          memory_turns: 15,
+          multi_language: true,
+          persona: {
+            tier: "Platinum",
+            description: "Platinum sales closer focused on outbound demos and contracts; confident tone, assumptive closing, ROI storytelling, strong objection handling.",
+            tone: "confident, consultative, assumptive-closing",
+            closing_style: "assumptive close with clear next steps (demo / contract)",
+            storytelling_focus: "ROI, business impact, and time-to-value"
+          },
+          advanced: {
+            max_call_duration_seconds: 900,
+            max_retries: 3,
+            voicemail_strategy: "drop_voicemail_if_no_answer",
+            record_calls: true,
+            transcribe_calls: true,
+            retain_days: 30,
+            rate_limit_per_minute: 30,
+            fallback_routing: "transfer_to_AE_if_blocked",
+            webhook_urls: {}
+          },
+          integrations: {
+            crm_provider: "HubSpot",
+            crm_auto_sync: true,
+            lead_scoring_enabled: true,
+            conferencing_platforms: ["Zoom", "Google Meet", "Teams"],
+            default_meeting_link_template: "https://meet.example.com/{owner_id}/{lead_id}"
+          },
+          ab_test_variant: "A"
+        },
+        lead: {
+          lead_id: "LEAD-1001",
+          name: "David",
+          company: "Tech Excels",
+          role: "CEO",
+          region: "USA",
+          email: "david@techexcels.com",
+          phone: "+923021212123",
+          estimated_deal_size: 20000,
+          currency: "USD",
+          crm_id: "string",
+          pain_points: ["manual workflows", "slow sales cycles"],
+          current_tools: "HubSpot, Google Sheets",
+          notes: "High-intent lead from outbound sequence",
+          preferred_language: "en"
+        },
+        settings: {
+          channel: "phone",
+          call_id: "CALL-001",
+          call_attempt: 1,
+          allow_negotiation: true,
+          target_next_step: "book_demo",
+          max_agent_response_tokens: 600
+        },
+        history: [
+          {
+            role: "prospect",
+            content: "Hey, we are evaluating automation tools.",
+            sentiment: "neutral",
+            timestamp: "2025-11-18T00:00:00Z"
+          }
+        ],
+        custom_variables: {}
+      };
+
+      const res = await fetch("http://127.0.0.1:8000/agents/apex-sales-pro/chat-voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const audioBlob = await res.blob();
+      const url = URL.createObjectURL(audioBlob);
+      const audio = new Audio(url);
+      audio.play();
+
+      console.log("Agent transcript:", res.headers.get("X-Agent-Message"));
+    }
+  </script>
+</body>
+</html>
