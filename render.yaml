@@ -2,14 +2,9 @@ services:
   - type: web
     name: ai-voice-agent-backend
     env: python
-    buildCommand: |
-      npm ci || npm install
-      npm run build
-      rm -rf backend/static/frontend || true
-      mkdir -p backend/static/frontend
-      cp -r dist/* backend/static/frontend/
-      pip install --no-cache-dir -r requirements.txt
-    startCommand: gunicorn app.main:app -k uvicorn.workers.UvicornWorker --workers 3 --bind 0.0.0.0:$PORT --chdir backend
+    runtime: python
+    buildCommand: bash build.sh
+    startCommand: cd backend && gunicorn app.main:app -k uvicorn.workers.UvicornWorker --workers 3 --bind 0.0.0.0:$PORT
     envVars:
       - key: ENVIRONMENT
         value: production
