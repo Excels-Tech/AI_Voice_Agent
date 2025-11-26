@@ -34,11 +34,11 @@
 
   1. Push this repository to GitHub (done in this workspace).
   2. In Render, create a **Web Service** from the repo, pick the `render.yaml` blueprint, and set environment to Python 3.11+.
-  3. Configure environment variables:
+  3. Configure environment variables (set in Render dashboard, do NOT commit secrets):
      - `ENVIRONMENT=production`
      - `LOG_LEVEL=INFO`
      - `DATABASE_URL` = your Render Postgres connection string  
-       Example (provided): `postgresql://voice_agent_db_user:mNLgI4lAgNHtpeETyjU13bpaGxzARiFy@dpg-d4jj5i2li9vc738gucl0-a/voice_agent_db`
+       Example format: `postgresql://voice_agent_db_user:<PASSWORD>@dpg-d4jj5i2li9vc738gucl0-a/voice_agent_db`
      - `OPENAI_API_KEY` and any optional integrators (Twilio, AWS, Stripe, etc.).
   4. Render will run the start command from `render.yaml`: `gunicorn app.main:app -k uvicorn.workers.UvicornWorker --workers 3 --bind 0.0.0.0:$PORT --chdir backend`
 
