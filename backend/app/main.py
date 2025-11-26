@@ -2,8 +2,9 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.core.config import settings
@@ -81,6 +82,21 @@ app.include_router(agent_runtimes.router, prefix="", tags=["Agent Runtime"])
 static_dir = Path(__file__).resolve().parents[1] / "static"
 static_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+
+# Serve built frontend (if present) from backend/app/static/frontend
+frontend_dir = static_dir / "frontend"
+if frontend_dir.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
+
+    @app.get("/{full_path:path}")
+    async def spa_fallback(full_path: str):
+        # Let API/docs/static/ws paths fall through to FastAPI handlers
+        if full_path.startswith(("api", "docs", "redoc", "static", "ws")):
+            raise HTTPException(status_code=404)
+        index_path = frontend_dir / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path)
+        raise HTTPException(status_code=404, detail="Frontend build not found")
 
 
 @app.get("/health")
