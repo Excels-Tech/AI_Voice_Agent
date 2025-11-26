@@ -5,9 +5,9 @@ services:
     buildCommand: |
       npm install
       npm run build
-      rm -rf backend/app/static/frontend || true
-      mkdir -p backend/app/static/frontend
-      cp -r dist/* backend/app/static/frontend/
+      rm -rf backend/static/frontend || true
+      mkdir -p backend/static/frontend
+      cp -r dist/* backend/static/frontend/
       pip install --no-cache-dir -r requirements.txt
     startCommand: gunicorn app.main:app -k uvicorn.workers.UvicornWorker --workers 3 --bind 0.0.0.0:$PORT --chdir backend
     envVars:
