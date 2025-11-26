@@ -83,22 +83,6 @@ static_dir = Path(__file__).resolve().parents[1] / "static"
 static_dir.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 
-# Serve built frontend (if present) from backend/app/static/frontend
-frontend_dir = static_dir / "frontend"
-if frontend_dir.exists():
-    app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
-
-    @app.get("/{full_path:path}")
-    async def spa_fallback(full_path: str):
-        # Let API/docs/static/ws paths fall through to FastAPI handlers
-        if full_path.startswith(("api", "docs", "redoc", "static", "ws")):
-            raise HTTPException(status_code=404)
-        index_path = frontend_dir / "index.html"
-        if index_path.exists():
-            return FileResponse(index_path)
-        raise HTTPException(status_code=404, detail="Frontend build not found")
-
-
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
@@ -109,11 +93,33 @@ async def health_check():
     }
 
 
-@app.get("/")
-async def root():
-    """Root endpoint."""
-    return {
-        "message": "VoiceAI Backend API",
-        "docs": "/docs",
-        "redoc": "/redoc",
-    }
+# Serve built frontend (if present) from backend/app/static/frontend
+frontend_dir = static_dir / "frontend"
+if frontend_dir.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
+
+    @app.get("/", include_in_schema=False)
+    async def serve_index():
+        index_path = frontend_dir / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path)
+        raise HTTPException(status_code=404, detail="Frontend build not found")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        # Let API/docs/static/ws paths fall through to FastAPI handlers
+        if full_path.startswith(("api", "docs", "redoc", "static", "ws")):
+            raise HTTPException(status_code=404)
+        index_path = frontend_dir / "index.html"
+        if index_path.exists():
+            return FileResponse(index_path)
+        raise HTTPException(status_code=404, detail="Frontend build not found")
+else:
+    @app.get("/")
+    async def root():
+        """Root endpoint."""
+        return {
+            "message": "VoiceAI Backend API",
+            "docs": "/docs",
+            "redoc": "/redoc",
+        }
