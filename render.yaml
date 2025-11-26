@@ -11,7 +11,7 @@ services:
       - key: LOG_LEVEL
         value: INFO
       - key: DATABASE_URL
-        # Set this in Render dashboard (example provided in backend/.env.example)
+        value: postgresql://voice_agent_db_user:mNLgI4lAgNHtpeETyjU13bpaGxzARiFy@dpg-d4jj5i2li9vc738gucl0-a/voice_agent_db
         sync: false
       - key: OPENAI_API_KEY
         sync: false

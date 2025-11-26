@@ -1,11 +1,9 @@
 from typing import Generator
 import logging
-from pathlib import Path
 from sqlmodel import Session, SQLModel, create_engine
 from sqlalchemy import inspect
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.pool import StaticPool
 
 from app.core.config import settings
 from app.seed import seed_database
@@ -21,31 +19,22 @@ REQUIRED_TABLES = {
     "payment_methods",
 }
 
-LOCAL_SQLITE_PATH = Path(__file__).resolve().parents[2] / "voiceai.db"
-LOCAL_SQLITE_URL = f"sqlite:///{LOCAL_SQLITE_PATH}"
-
 
 def _create_engine(db_url: str) -> "Engine":
-    """Create a SQLAlchemy engine with sensible defaults per backend."""
+    """Create a SQLAlchemy engine for PostgreSQL."""
     # Prefer psycopg (v3) driver explicitly to avoid psycopg2 binary issues on Render.
     if db_url.startswith("postgresql://") and "+psycopg" not in db_url:
         db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
     engine_kwargs = {
         "echo": settings.SQLALCHEMY_ECHO,
+        "pool_pre_ping": True,
+        "pool_size": 10,
+        "max_overflow": 20,
     }
-    connect_args = {}
-
-    if db_url.startswith("sqlite"):
-        connect_args["check_same_thread"] = False
-        engine_kwargs["poolclass"] = StaticPool
-    else:
-        connect_args["connect_timeout"] = settings.DB_CONNECT_TIMEOUT
-        engine_kwargs.update(
-            pool_pre_ping=True,
-            pool_size=10,
-            max_overflow=20,
-        )
+    connect_args = {
+        "connect_timeout": settings.DB_CONNECT_TIMEOUT,
+    }
 
     return create_engine(
         db_url,
@@ -58,26 +47,9 @@ engine = _create_engine(settings.DATABASE_URL)
 
 
 def init_db() -> None:
-    """Initialize database, with dev-mode SQLite fallback if primary is down."""
+    """Initialize database with PostgreSQL."""
     global engine
-    try:
-        _init_db_for_engine(engine)
-        return
-    except OperationalError as exc:
-        # Do not silently switch databases in production
-        if settings.ENVIRONMENT.lower() == "production":
-            logger.error("Database connection failed for %s: %s", settings.DATABASE_URL, exc)
-            raise
-
-        logger.warning(
-            "Primary database %s unavailable (%s); falling back to local SQLite at %s",
-            settings.DATABASE_URL,
-            exc,
-            LOCAL_SQLITE_PATH,
-        )
-        LOCAL_SQLITE_PATH.parent.mkdir(parents=True, exist_ok=True)
-        engine = _create_engine(LOCAL_SQLITE_URL)
-        _init_db_for_engine(engine)
+    _init_db_for_engine(engine)
 
 
 def _init_db_for_engine(target_engine: Engine) -> None:
