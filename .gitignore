@@ -16,6 +16,9 @@ build/
 
 # Env & data
 .env
+*.env
+*.env.local
+*.env.*.local
 *.db
 voiceai.db
 

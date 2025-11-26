@@ -32,7 +32,7 @@
 
   The repo includes `render.yaml` for a turnkey Render Web Service using gunicorn/uvicorn. Steps:
 
-  1. Push this repository to GitHub (done in this workspace).
+  1. Push this repository to GitHub.
   2. In Render, create a **Web Service** from the repo, pick the `render.yaml` blueprint, and set environment to Python 3.11+.
   3. Configure environment variables (set in Render dashboard, do NOT commit secrets):
      - `ENVIRONMENT=production`
@@ -40,7 +40,9 @@
      - `DATABASE_URL` = your Render Postgres connection string  
        Example format: `postgresql://voice_agent_db_user:<PASSWORD>@dpg-d4jj5i2li9vc738gucl0-a/voice_agent_db`
      - `OPENAI_API_KEY` and any optional integrators (Twilio, AWS, Stripe, etc.).
-  4. Render will run the start command from `render.yaml`: `gunicorn app.main:app -k uvicorn.workers.UvicornWorker --workers 3 --bind 0.0.0.0:$PORT --chdir backend`
+  4. Render commands (also in `render.yaml`):
+     - Build: `pip install --no-cache-dir -r requirements.txt`
+     - Start: `gunicorn app.main:app -k uvicorn.workers.UvicornWorker --workers 3 --bind 0.0.0.0:$PORT --chdir backend`
 
   Notes:
   - Default model is `gpt-4o-mini` for faster responses; override via `OPENAI_MODEL`.
