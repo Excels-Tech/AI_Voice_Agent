@@ -96,6 +96,7 @@ async def health_check():
 # Serve built frontend (if present) from backend/app/static/frontend
 frontend_dir = static_dir / "frontend"
 if frontend_dir.exists():
+    logger.info("Frontend build detected at %s", frontend_dir)
     app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="frontend")
 
     @app.get("/", include_in_schema=False)
@@ -115,6 +116,8 @@ if frontend_dir.exists():
             return FileResponse(index_path)
         raise HTTPException(status_code=404, detail="Frontend build not found")
 else:
+    logger.warning("No frontend build found at %s; serving API root JSON", frontend_dir)
+
     @app.get("/")
     async def root():
         """Root endpoint."""
