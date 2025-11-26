@@ -3,7 +3,7 @@ services:
     name: ai-voice-agent-backend
     env: python
     runtime: python
-    buildCommand: pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt && npm ci && npm run build && mkdir -p backend/static/frontend && ls -la && ls -la build/ && cp -r build/* backend/static/frontend/
+    buildCommand: pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt && npm ci && npm run build && rm -rf backend/static/frontend && mv build backend/static/frontend
     startCommand: cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: ENVIRONMENT
