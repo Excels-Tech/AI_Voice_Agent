@@ -135,6 +135,7 @@ async def websocket_live_voice_call(
     )
 
     def _normalize_extension(ext: str | None, default: str = ".webm") -> str:
+        allowed = {".flac", ".m4a", ".mp3", ".mp4", ".mpeg", ".mpga", ".oga", ".ogg", ".wav", ".webm"}
         if not ext:
             return default
         ext = ext.strip().lower()
@@ -142,6 +143,8 @@ async def websocket_live_voice_call(
             return default
         if not ext.startswith("."):
             ext = f".{ext}"
+        if ext not in allowed:
+            return default
         return ext
 
     audio_extension = _normalize_extension(state.metadata.get("audio_extension"), ".webm")
@@ -190,8 +193,8 @@ async def websocket_live_voice_call(
 
             if event_type == "end_utterance":
                 audio_bytes = state.pop_audio()
-                if not audio_bytes:
-                    await websocket.send_json({"type": "warning", "message": "No audio to transcribe"})
+                if not audio_bytes or len(audio_bytes) < 400:
+                    await websocket.send_json({"type": "warning", "message": "No usable audio to transcribe"})
                     continue
 
                 whisper_language = state.language.split("-")[0]
