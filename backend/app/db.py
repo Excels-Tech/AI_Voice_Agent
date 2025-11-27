@@ -17,6 +17,7 @@ REQUIRED_TABLES = {
     "invoices",
     "usage_stats",
     "payment_methods",
+    "user_settings",
 }
 
 
@@ -69,6 +70,7 @@ def _init_db_for_engine(target_engine: Engine) -> None:
         from app.models.notification import Notification  # noqa: F401
         from app.models.billing import Invoice, UsageStat, Subscription, PaymentMethod  # noqa: F401
         from app.models.webhook import WebhookSubscription  # noqa: F401
+        from app.models.user_settings import UserSettings  # noqa: F401
 
         SQLModel.metadata.create_all(target_engine)
         with target_engine.connect() as conn:

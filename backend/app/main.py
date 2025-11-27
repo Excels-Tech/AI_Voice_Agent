@@ -26,6 +26,7 @@ from app.routers import (
     billing,
     websocket,
     agent_runtimes,
+    account_settings,
 )
 
 # Configure root logging early so app logs show in the terminal.
@@ -81,6 +82,7 @@ app.include_router(integrations.router, prefix="/api/integrations", tags=["Integ
 app.include_router(workflows.router, prefix="/api/workflows", tags=["Workflows"])
 app.include_router(notifications.router, prefix="/api/notifications", tags=["Notifications"])
 app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
+app.include_router(account_settings.router, prefix="/api/account", tags=["Account Settings"])
 app.include_router(websocket.router, prefix="/ws", tags=["WebSocket"])
 # Specialized agent runtime endpoints (multi-agent runtime inspired by Apex Sales Pro)
 app.include_router(agent_runtimes.router, prefix="", tags=["Agent Runtime"])
