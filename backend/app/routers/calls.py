@@ -356,6 +356,7 @@ async def get_call_transcript(
         "transcript": call.transcript,
         "summary": call.summary,
         "duration_seconds": call.duration_seconds,
+        "outcome": call.outcome,
     }
 
 

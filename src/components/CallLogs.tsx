@@ -25,6 +25,7 @@ export function CallLogs() {
   const [dateFilter, setDateFilter] = useState("all");
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [selectedCall, setSelectedCall] = useState<number | null>(null);
+  const [selectedTranscript, setSelectedTranscript] = useState<{ callId: number; transcript: any[]; summary?: string; outcome?: string } | null>(null);
   const [workspaceId, setWorkspaceId] = useState<number | null>(null);
   const [calls, setCalls] = useState<CallLog[]>([]);
   const [agentsById, setAgentsById] = useState<Record<number, string>>({});
@@ -143,6 +144,19 @@ export function CallLogs() {
 
   const handleViewTranscript = (callId: number) => {
     setSelectedCall(callId);
+    (async () => {
+      try {
+        const data = await getCallTranscript(callId);
+        setSelectedTranscript({
+          callId,
+          transcript: data?.transcript || [],
+          summary: data?.summary,
+          outcome: data?.outcome,
+        });
+      } catch (err: any) {
+        toast.error(err?.message || "Unable to load transcript");
+      }
+    })();
   };
 
   const handlePlayRecording = (callId: number) => {
@@ -324,7 +338,7 @@ export function CallLogs() {
                         <div className="bg-slate-50 rounded-lg p-3 mb-3">
                           <p className="text-slate-700 text-sm mb-2">{transcriptPreview(call)}</p>
                           <p className="text-slate-900">
-                            <strong>Outcome:</strong> {call.outcome || "--"}
+                            <strong>Outcome:</strong> {call.outcome || call.summary || "Pending"}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -382,13 +396,37 @@ export function CallLogs() {
         </Card>
       )}
 
-      {selectedCall && (
+      {selectedTranscript && (
         <Card className="bg-white border-slate-200">
-          <CardContent className="p-4">
-            <h4 className="text-slate-900 mb-2">Transcript preview for call #{selectedCall}</h4>
-            <p className="text-slate-700 text-sm">
-              {transcriptPreview(calls.find((c) => c.id === selectedCall) as CallLog)}
-            </p>
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="text-slate-900">Transcript for call #{selectedTranscript.callId}</h4>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedTranscript(null)}>
+                Close
+              </Button>
+            </div>
+            {selectedTranscript.summary && (
+              <p className="text-slate-700 text-sm">
+                <strong>Summary:</strong> {selectedTranscript.summary}
+              </p>
+            )}
+            {selectedTranscript.outcome && (
+              <p className="text-slate-700 text-sm">
+                <strong>Outcome:</strong> {selectedTranscript.outcome}
+              </p>
+            )}
+            <div className="space-y-1 max-h-64 overflow-auto">
+              {selectedTranscript.transcript?.length ? (
+                selectedTranscript.transcript.map((entry: any, idx: number) => (
+                  <div key={idx} className="text-sm text-slate-700">
+                    <span className="font-semibold capitalize">{entry.role || "speaker"}: </span>
+                    <span>{entry.content || entry.text || JSON.stringify(entry)}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-slate-600 text-sm">No transcript available.</p>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}

@@ -41,7 +41,7 @@ import { WorkspaceManagement } from "./WorkspaceManagement";
 import { RealTimeMonitoring } from "./RealTimeMonitoring";
 import { WhiteLabelSettings } from "./WhiteLabelSettings";
 import { toast } from "sonner";
-import { getMe } from "../lib/api";
+import { getMe, listWorkspaces, listNotifications, getUnreadNotificationsCount, markAllNotificationsRead, markNotificationRead } from "../lib/api";
 import type { AppUser } from "../types/user";
 
 interface DashboardProps {
@@ -72,6 +72,10 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
   const [showAgentBuilder, setShowAgentBuilder] = useState(false);
   const [useAdvancedBuilder, setUseAdvancedBuilder] = useState(true); // CallFluent mode
   const [currentUser, setCurrentUser] = useState<AppUser>(user);
+  const [workspaceId, setWorkspaceId] = useState<number | null>(null);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
 
   useEffect(() => {
     setCurrentUser(user);
@@ -106,6 +110,65 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
       mounted = false;
     };
   }, []);
+
+  // Resolve workspace id for shared UI (notifications, etc.)
+  useEffect(() => {
+    (async () => {
+      try {
+        const workspaces = await listWorkspaces();
+        const activeWorkspace = workspaces?.find((w: any) => w.is_active) ?? workspaces?.[0];
+        const wsId = activeWorkspace?.id ?? activeWorkspace?.workspace_id;
+        if (wsId) setWorkspaceId(wsId);
+      } catch (err) {
+        console.error("Failed to load workspaces for notifications", err);
+      }
+    })();
+  }, []);
+
+  const loadNotifications = async (wsId: number) => {
+    setNotificationsLoading(true);
+    try {
+      const [items, unread] = await Promise.all([
+        listNotifications(wsId),
+        getUnreadNotificationsCount(wsId),
+      ]);
+      setNotifications(items || []);
+      setUnreadCount(unread?.unread_count ?? 0);
+    } catch (err) {
+      console.error("Failed to load notifications", err);
+    } finally {
+      setNotificationsLoading(false);
+    }
+  };
+
+  const handleOpenNotifications = () => {
+    setShowNotifications((prev) => {
+      const next = !prev;
+      if (next && workspaceId) {
+        loadNotifications(workspaceId);
+      }
+      return next;
+    });
+  };
+
+  const handleMarkAllNotifications = async () => {
+    if (!workspaceId) return;
+    try {
+      await markAllNotificationsRead(workspaceId);
+      await loadNotifications(workspaceId);
+    } catch (err) {
+      console.error("Failed to mark all notifications read", err);
+    }
+  };
+
+  const handleNotificationClick = async (id: number) => {
+    try {
+      await markNotificationRead(id);
+      if (workspaceId) await loadNotifications(workspaceId);
+    } catch (err) {
+      console.error("Failed to mark notification read", err);
+    }
+  };
 
   const handleUserUpdate = (updates: Partial<AppUser>) => {
     setCurrentUser((prev) => ({ ...prev, ...updates }));
@@ -199,17 +262,25 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
               <div className="relative">
                 <Button
                   variant="ghost"
-                  onClick={() => setShowNotifications(!showNotifications)}
+                  onClick={handleOpenNotifications}
                 >
                   <div className="relative">
                     <Phone className="size-5" />
-                    <span className="absolute -top-1 -right-1 size-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">
-                      3
-                    </span>
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 min-w-4 px-1 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
                   </div>
                 </Button>
                 {showNotifications && (
-                  <NotificationsPanel onClose={() => setShowNotifications(false)} />
+                  <NotificationsPanel
+                    notifications={notifications}
+                    loading={notificationsLoading}
+                    onClose={() => setShowNotifications(false)}
+                    onMarkAllRead={handleMarkAllNotifications}
+                    onMarkOne={handleNotificationClick}
+                  />
                 )}
               </div>
               <Button variant="ghost" onClick={() => setActivePage("settings")}>

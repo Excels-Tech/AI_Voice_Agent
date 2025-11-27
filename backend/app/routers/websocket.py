@@ -484,6 +484,7 @@ async def _handle_agent_turn(
     assistant_message_id = uuid4().hex
     state.append_history("assistant", assistant_text, message_id=assistant_message_id)
     call_log.transcript = state.history
+    call_log.outcome = assistant_text  # keep latest assistant reply as outcome for quick view
     call_log.duration_seconds = int((datetime.utcnow() - call_log.started_at).total_seconds())
     session.add(call_log)
     session.commit()

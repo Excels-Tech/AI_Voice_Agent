@@ -206,6 +206,45 @@ export async function createLiveCallSession(payload: LiveCallSessionPayload) {
   });
 }
 
+// Call transcripts
+export async function getCallTranscript(callId: number) {
+  return apiFetch(`/api/calls/${callId}/transcript`);
+}
+
+// Notifications
+export interface NotificationItem {
+  id: number;
+  workspace_id: number;
+  user_id?: number | null;
+  type: string;
+  title: string;
+  message: string;
+  read: boolean;
+  created_at: string;
+  updated_at: string;
+  severity?: string | null;
+}
+
+export async function listNotifications(workspaceId: number, read?: boolean) {
+  const params = new URLSearchParams({ workspace_id: String(workspaceId) });
+  if (read !== undefined) params.set("read", String(read));
+  return apiFetch<NotificationItem[]>(`/api/notifications?${params.toString()}`);
+}
+
+export async function getUnreadNotificationsCount(workspaceId: number) {
+  const params = new URLSearchParams({ workspace_id: String(workspaceId) });
+  return apiFetch<{ unread_count: number }>(`/api/notifications/unread-count?${params.toString()}`);
+}
+
+export async function markNotificationRead(notificationId: number) {
+  return apiFetch(`/api/notifications/${notificationId}/read`, { method: "PUT" });
+}
+
+export async function markAllNotificationsRead(workspaceId: number) {
+  const params = new URLSearchParams({ workspace_id: String(workspaceId) });
+  return apiFetch(`/api/notifications/read-all?${params.toString()}`, { method: "PUT" });
+}
+
 // Calls
 export interface CallLog {
   id: number;
