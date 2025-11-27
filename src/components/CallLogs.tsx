@@ -33,6 +33,7 @@ export function CallLogs() {
   const [error, setError] = useState<string | null>(null);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
 
   const formatDuration = (seconds?: number) => {
     if (seconds === undefined || seconds === null) return "--";
@@ -77,7 +78,7 @@ export function CallLogs() {
 
     const load = async () => {
       try {
-        setLoading(true);
+        if (isFirstLoad) setLoading(true);
         setError(null);
         const [callData, agentList] = await Promise.all([
           listCallLogs({ workspaceId, limit: 200 }),
@@ -89,8 +90,20 @@ export function CallLogs() {
           if (a?.id) agentMap[a.id] = a.name || `Agent ${a.id}`;
         });
         setAgentsById(agentMap);
-        setCalls(callData || []);
+        const incoming = (callData || []) as CallLog[];
+        setCalls((prev) => {
+          const map = new Map<number, CallLog>();
+          prev.forEach((c) => map.set(c.id, c));
+          incoming.forEach((c) => {
+            const existing = map.get(c.id);
+            map.set(c.id, existing ? { ...existing, ...c } : c);
+          });
+          return Array.from(map.values()).sort(
+            (a, b) => new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
+          );
+        });
         setLastUpdated(new Date());
+        setIsFirstLoad(false);
       } catch (err: any) {
         if (!active) return;
         setError(err?.message || "Unable to load call logs");
