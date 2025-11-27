@@ -194,7 +194,34 @@ async def websocket_live_voice_call(
             if event_type == "end_utterance":
                 audio_bytes = state.pop_audio()
                 if not audio_bytes or len(audio_bytes) < 400:
-                    await websocket.send_json({"type": "warning", "message": "No usable audio to transcribe"})
+                    # Send a spoken prompt so the user hears a response
+                    assistant_text = "I didn't catch that. Could you please repeat?"
+                    assistant_message_id = uuid4().hex
+                    state.append_history("assistant", assistant_text, message_id=assistant_message_id)
+                    call_log.transcript = state.history
+                    session.add(call_log)
+                    session.commit()
+                    await websocket.send_json({
+                        "type": "transcript",
+                        "role": "assistant",
+                        "text": assistant_text,
+                        "message_id": assistant_message_id,
+                    })
+                    await send_call_update(call_log.id, {"type": "transcript", "role": "assistant", "text": assistant_text})
+                    try:
+                        audio_bytes = await openai_service.text_to_speech(
+                            text=assistant_text,
+                            voice=state.voice,
+                            model="tts-1",
+                        )
+                        await websocket.send_json({
+                            "type": "audio_chunk",
+                            "role": "assistant",
+                            "data": base64.b64encode(audio_bytes).decode("utf-8"),
+                            "message_id": assistant_message_id,
+                        })
+                    except Exception:
+                        pass
                     continue
 
                 whisper_language = state.language.split("-")[0]
