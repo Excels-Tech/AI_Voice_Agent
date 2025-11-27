@@ -18,7 +18,7 @@ import {
   Voicemail,
 } from "lucide-react";
 import { toast } from "sonner";
-import { listAgents, listCallLogs, listWorkspaces, type CallLog } from "../lib/api";
+import { getCallTranscript, listAgents, listCallLogs, listWorkspaces, type CallLog } from "../lib/api";
 
 export function CallLogs() {
   const [searchQuery, setSearchQuery] = useState("");
