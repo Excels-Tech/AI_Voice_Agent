@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-import openai
+import asyncio
 from openai import OpenAI
 
 from app.core.config import settings
@@ -58,29 +58,30 @@ class OpenAIService:
         max_tokens: int = 320,
         functions: Optional[List[Dict]] = None,
     ) -> Dict[str, Any]:
-        """Generate chat completion."""
+        """Generate chat completion without blocking the event loop."""
         try:
             params = {
                 "model": self._prefer_fast_model(model),
                 "messages": messages,
                 "temperature": temperature,
                 "max_tokens": max_tokens,
+                "timeout": 20,
             }
-            
+
             if functions:
                 params["functions"] = functions
                 params["function_call"] = "auto"
-            
-            response = self.client.chat.completions.create(**params)
-            
+
+            response = await asyncio.to_thread(self.client.chat.completions.create, **params)
+
             return {
                 "content": response.choices[0].message.content,
-                "function_call": response.choices[0].message.function_call if hasattr(response.choices[0].message, 'function_call') else None,
+                "function_call": getattr(response.choices[0].message, "function_call", None),
                 "usage": {
                     "prompt_tokens": response.usage.prompt_tokens,
                     "completion_tokens": response.usage.completion_tokens,
                     "total_tokens": response.usage.total_tokens,
-                }
+                },
             }
         except Exception as e:
             print(f"OpenAI chat completion error: {e}")
@@ -95,12 +96,13 @@ class OpenAIService:
         """Convert text to speech."""
         normalized_voice = self._normalize_voice(voice)
         try:
-            response = self.client.audio.speech.create(
+            response = await asyncio.to_thread(
+                self.client.audio.speech.create,
                 model=model,
                 voice=normalized_voice,
                 input=text,
+                timeout=20,
             )
-            
             return response.content
         except Exception as e:
             print(f"OpenAI TTS error: {e}")
@@ -116,27 +118,28 @@ class OpenAIService:
         try:
             if not file_extension.startswith("."):
                 file_extension = f".{file_extension}"
-            # Save audio to temp file
+
             import tempfile
+            import os
+
             with tempfile.NamedTemporaryFile(suffix=file_extension, delete=False) as temp_file:
                 temp_file.write(audio_file)
                 temp_file_path = temp_file.name
-            
-            with open(temp_file_path, "rb") as audio:
-                params = {
-                    "model": "whisper-1",
-                    "file": audio,
-                }
-                
-                if language:
-                    params["language"] = language
-                
-                response = self.client.audio.transcriptions.create(**params)
-            
-            # Clean up temp file
-            import os
+
+            def _transcribe(path: str):
+                with open(path, "rb") as audio:
+                    params = {
+                        "model": "whisper-1",
+                        "file": audio,
+                        "timeout": 30,
+                    }
+                    if language:
+                        params["language"] = language
+                    return self.client.audio.transcriptions.create(**params)
+
+            response = await asyncio.to_thread(_transcribe, temp_file_path)
             os.unlink(temp_file_path)
-            
+
             return {
                 "text": response.text,
             }

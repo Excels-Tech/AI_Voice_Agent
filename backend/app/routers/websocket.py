@@ -336,7 +336,7 @@ async def _generate_initial_greeting(
             messages=messages,
             model=state.model,
             temperature=0.55,
-            max_tokens=120,
+            max_tokens=80,
         )
         greeting_text = (response.get("content") or "").strip()
     except Exception as exc:
@@ -397,7 +397,7 @@ async def _handle_agent_turn(
             messages=messages,
             model=state.model,
             temperature=0.45,
-            max_tokens=220,
+            max_tokens=160,
         )
         assistant_text = (response.get("content") or "").strip()
     except Exception as exc:
