@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import {
   cancelSubscription,
   downloadInvoice,
+  getPlans,
   getPaymentMethod,
   getSubscription,
   getUsageStats,
@@ -26,7 +27,6 @@ import {
   Plan,
   upgradeSubscription,
   upsertPaymentMethod,
-  getPlans,
   generateInvoice,
   type PaymentMethod,
 } from "../lib/api";
@@ -121,9 +121,53 @@ export function Billing() {
   } | null>(null);
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
 
+  const hydrateFromCache = () => {
+    try {
+      const raw = localStorage.getItem("billing_cache");
+      if (!raw) return;
+      const cached = JSON.parse(raw);
+      if (!cached) return;
+      if (cached.subscription) setCurrentPlan(cached.subscription.plan);
+      if (cached.plans) setPlans(cached.plans);
+      if (Array.isArray(cached.invoices)) {
+        setInvoices(
+          cached.invoices.map((inv: any) => ({
+            id: inv.id,
+            invoice_number: inv.invoice_number,
+            date: new Date(inv.created_at).toLocaleDateString(),
+            amount: `$${(inv.amount_cents / 100).toFixed(2)}`,
+            status: inv.status,
+            period: `${new Date(inv.period_start).toLocaleDateString()} - ${new Date(
+              inv.period_end
+            ).toLocaleDateString()}`,
+            currency: inv.currency?.toUpperCase?.() || "USD",
+            raw: inv,
+          }))
+        );
+      }
+      if (cached.usageStats) {
+        const minutesStat = cached.usageStats.find((u: any) => u.metric.includes("minutes"))?.value ?? 0;
+        const callsStat = cached.usageStats.find((u: any) => u.metric.includes("calls"))?.value ?? 0;
+        setUsage({
+          minutes: {
+            used: minutesStat,
+            total: 5000,
+            percentage: Math.min(100, (minutesStat / 5000) * 100),
+          },
+          calls: { total: callsStat },
+          agents: { active: 0, total: 0 },
+        });
+      }
+      if (cached.paymentMethod) setPaymentMethod(cached.paymentMethod);
+    } catch {
+      /* ignore cache errors */
+    }
+  };
+
   useEffect(() => {
     (async () => {
       try {
+        hydrateFromCache();
         setIsLoading(true);
         const workspaces = await listWorkspaces();
         if (!workspaces?.length) {
@@ -175,6 +219,18 @@ export function Billing() {
         if (pm) {
           setPaymentMethod(pm);
         }
+
+        // Cache for faster re-entry
+        localStorage.setItem(
+          "billing_cache",
+          JSON.stringify({
+            subscription,
+            usageStats,
+            invoices: invoiceList,
+            paymentMethod: pm,
+            plans: subscription.available_plans || planCatalog.plans || DEFAULT_PLANS,
+          })
+        );
       } catch (err: any) {
         console.error(err);
         toast.error(err?.message || "Failed to load billing data");

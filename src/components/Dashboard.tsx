@@ -41,7 +41,19 @@ import { WorkspaceManagement } from "./WorkspaceManagement";
 import { RealTimeMonitoring } from "./RealTimeMonitoring";
 import { WhiteLabelSettings } from "./WhiteLabelSettings";
 import { toast } from "sonner";
-import { getMe, listWorkspaces, listNotifications, getUnreadNotificationsCount, markAllNotificationsRead, markNotificationRead } from "../lib/api";
+import {
+  getMe,
+  listWorkspaces,
+  listNotifications,
+  getUnreadNotificationsCount,
+  markAllNotificationsRead,
+  markNotificationRead,
+  getSubscription,
+  getUsageStats,
+  listInvoices,
+  getPaymentMethod,
+  getPlans,
+} from "../lib/api";
 import type { AppUser } from "../types/user";
 
 interface DashboardProps {
@@ -76,6 +88,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
+  const [billingPrefetched, setBillingPrefetched] = useState(false);
 
   useEffect(() => {
     setCurrentUser(user);
@@ -169,6 +182,35 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
       console.error("Failed to mark notification read", err);
     }
   };
+
+  // Prefetch billing data in the background so the Billing tab opens fast.
+  useEffect(() => {
+    if (!workspaceId || billingPrefetched) return;
+    (async () => {
+      try {
+        const [subscription, usageStats, invoiceList, pm, planCatalog] = await Promise.all([
+          getSubscription(workspaceId),
+          getUsageStats(workspaceId).catch(() => []),
+          listInvoices(workspaceId).catch(() => []),
+          getPaymentMethod(workspaceId).catch(() => null),
+          getPlans().catch(() => ({ plans: [] })),
+        ]);
+        localStorage.setItem(
+          "billing_cache",
+          JSON.stringify({
+            subscription,
+            usageStats,
+            invoices: invoiceList,
+            paymentMethod: pm,
+            plans: subscription.available_plans || planCatalog.plans || [],
+          })
+        );
+        setBillingPrefetched(true);
+      } catch (err) {
+        console.warn("Billing prefetch failed", err);
+      }
+    })();
+  }, [workspaceId, billingPrefetched]);
 
   const handleUserUpdate = (updates: Partial<AppUser>) => {
     setCurrentUser((prev) => ({ ...prev, ...updates }));
