@@ -205,7 +205,35 @@ async def websocket_live_voice_call(
                         file_extension=audio_extension,
                     )
                 except Exception as exc:
-                    await websocket.send_json({"type": "error", "message": f"STT failed: {exc}"})
+                    await websocket.send_json({"type": "warning", "message": f"Did not catch that ({exc})"})
+                    # Proactively ask user to repeat instead of stalling the turn
+                    assistant_text = "I didn't catch that. Could you please repeat?"
+                    assistant_message_id = uuid4().hex
+                    state.append_history("assistant", assistant_text, message_id=assistant_message_id)
+                    call_log.transcript = state.history
+                    session.add(call_log)
+                    session.commit()
+                    await websocket.send_json({
+                        "type": "transcript",
+                        "role": "assistant",
+                        "text": assistant_text,
+                        "message_id": assistant_message_id,
+                    })
+                    await send_call_update(call_log.id, {"type": "transcript", "role": "assistant", "text": assistant_text})
+                    try:
+                        audio_bytes = await openai_service.text_to_speech(
+                            text=assistant_text,
+                            voice=state.voice,
+                            model="tts-1",
+                        )
+                        await websocket.send_json({
+                            "type": "audio_chunk",
+                            "role": "assistant",
+                            "data": base64.b64encode(audio_bytes).decode("utf-8"),
+                            "message_id": assistant_message_id,
+                        })
+                    except Exception:
+                        pass
                     continue
 
                 user_text = (transcription.get("text") or "").strip()

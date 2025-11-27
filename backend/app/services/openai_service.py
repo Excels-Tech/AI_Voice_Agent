@@ -116,6 +116,10 @@ class OpenAIService:
     ) -> Dict[str, Any]:
         """Transcribe audio to text using Whisper."""
         try:
+            # Guard tiny payloads to avoid OpenAI 400s
+            if not audio_file or len(audio_file) < 2048:
+                raise ValueError("Audio too short to transcribe")
+
             if not file_extension.startswith("."):
                 file_extension = f".{file_extension}"
 
@@ -131,7 +135,6 @@ class OpenAIService:
                     params = {
                         "model": "whisper-1",
                         "file": audio,
-                        "timeout": 30,
                     }
                     if language:
                         params["language"] = language
