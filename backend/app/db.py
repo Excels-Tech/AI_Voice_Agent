@@ -110,6 +110,7 @@ def _ensure_user_profile_columns(conn) -> None:
         "job_title": "TEXT",
         "location": "TEXT",
         "bio": "TEXT",
+        "avatar_url": "TEXT",
     }
     mutated = False
     for column, column_type in columns.items():
