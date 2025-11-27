@@ -12,7 +12,7 @@ from app.models.integration import Integration, IntegrationCreate, IntegrationRe
 router = APIRouter()
 
 
-@router.get("/", response_model=List[dict])
+@router.get("", response_model=List[dict])
 async def list_available_integrations():
     """List all available integrations catalog."""
     integrations_catalog = [

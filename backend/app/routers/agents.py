@@ -65,7 +65,7 @@ class AgentVoiceChatResponse(SQLModel):
     audio: Optional[str] = None
     usage: Optional[dict] = None
 
-@router.get("/", response_model=List[AgentRead])
+@router.get("", response_model=List[AgentRead])
 async def list_agents(
     workspace_id: int = Query(...),
     status: Optional[str] = Query(None),
@@ -105,7 +105,7 @@ async def list_agents(
     return agents
 
 
-@router.post("/", response_model=AgentRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=AgentRead, status_code=status.HTTP_201_CREATED)
 async def create_agent(
     agent_data: AgentCreate,
     current_user: User = Depends(get_current_active_user),

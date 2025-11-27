@@ -12,7 +12,7 @@ from app.models.workflow import Workflow, WorkflowCreate, WorkflowRead
 router = APIRouter()
 
 
-@router.get("/", response_model=List[WorkflowRead])
+@router.get("", response_model=List[WorkflowRead])
 async def list_workflows(
     workspace_id: int = Query(...),
     status: str = Query(None),
@@ -44,7 +44,7 @@ async def list_workflows(
     return workflows
 
 
-@router.post("/", response_model=WorkflowRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=WorkflowRead, status_code=status.HTTP_201_CREATED)
 async def create_workflow(
     workflow_data: WorkflowCreate,
     current_user: User = Depends(get_current_active_user),

@@ -12,7 +12,7 @@ from app.models.meeting import Meeting, MeetingCreate, MeetingUpdate, MeetingRea
 router = APIRouter()
 
 
-@router.get("/", response_model=List[MeetingRead])
+@router.get("", response_model=List[MeetingRead])
 async def list_meetings(
     workspace_id: int = Query(...),
     status: Optional[str] = Query(None),
@@ -52,7 +52,7 @@ async def list_meetings(
     return meetings
 
 
-@router.post("/", response_model=MeetingRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=MeetingRead, status_code=status.HTTP_201_CREATED)
 async def create_meeting(
     meeting_data: MeetingCreate,
     current_user: User = Depends(get_current_active_user),

@@ -12,7 +12,7 @@ from app.models.knowledge import KnowledgeAsset, KnowledgeAssetCreate, Knowledge
 router = APIRouter()
 
 
-@router.get("/", response_model=List[KnowledgeAssetRead])
+@router.get("", response_model=List[KnowledgeAssetRead])
 async def list_knowledge_assets(
     workspace_id: int = Query(...),
     agent_id: Optional[int] = Query(None),

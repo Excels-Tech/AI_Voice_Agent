@@ -12,7 +12,7 @@ from app.models.notification import Notification, NotificationCreate, Notificati
 router = APIRouter()
 
 
-@router.get("/", response_model=List[NotificationRead])
+@router.get("", response_model=List[NotificationRead])
 async def list_notifications(
     workspace_id: int = Query(...),
     read: bool = Query(None),

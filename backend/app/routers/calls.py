@@ -23,7 +23,7 @@ from app.services.language import resolve_language_code
 router = APIRouter()
 
 
-@router.get("/", response_model=List[CallLogRead])
+@router.get("", response_model=List[CallLogRead])
 async def list_calls(
     workspace_id: int = Query(...),
     agent_id: Optional[int] = Query(None),
@@ -70,7 +70,7 @@ async def list_calls(
     return calls
 
 
-@router.post("/", response_model=CallLogRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=CallLogRead, status_code=status.HTTP_201_CREATED)
 async def initiate_call(
     call_data: CallInitiate,
     current_user: User = Depends(get_current_active_user),

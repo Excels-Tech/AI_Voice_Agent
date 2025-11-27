@@ -338,7 +338,7 @@ FEATURED_AGENTS = _featured_agents_seed()
 router = APIRouter()
 
 
-@router.get("/", response_model=List[FeaturedAgent])
+@router.get("", response_model=List[FeaturedAgent])
 async def list_featured_agents() -> List[FeaturedAgent]:
     """Return all featured agent templates."""
     return list(FEATURED_AGENTS.values())
