@@ -1,6 +1,12 @@
 export type AuthTokens = { access_token: string; refresh_token: string; token_type?: string };
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://127.0.0.1:8000";
+// In production on Render, always talk to the deployed backend URL.
+// Locally, you can still override with VITE_API_BASE or fall back to 127.0.0.1.
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  (import.meta.env.MODE === "production"
+    ? "https://ai-voice-agent-kljd.onrender.com"
+    : "http://127.0.0.1:8000");
 
 export function getApiBase() {
   return API_BASE;
