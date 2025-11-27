@@ -134,7 +134,7 @@ async def websocket_live_voice_call(
         session=session,
     )
 
-    def _normalize_extension(ext: str | None, default: str = ".webm") -> str:
+    def _normalize_extension(ext: str | None, default: str = ".wav") -> str:
         allowed = {".flac", ".m4a", ".mp3", ".mp4", ".mpeg", ".mpga", ".oga", ".ogg", ".wav", ".webm"}
         if not ext:
             return default
