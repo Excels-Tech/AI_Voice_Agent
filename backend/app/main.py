@@ -1,4 +1,5 @@
 import logging
+import base64
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -6,6 +7,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import Response
 
 from app.core.config import settings
 from app.db import init_db
@@ -33,6 +35,11 @@ logging.basicConfig(
     format="%(levelname)s %(asctime)s %(name)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# 1x1 transparent PNG so missing avatars render gracefully instead of 404.
+DEFAULT_AVATAR_BYTES = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8Xw8AApMBgmsxTskAAAAASUVORK5CYII="
+)
 
 
 @asynccontextmanager
@@ -78,10 +85,29 @@ app.include_router(websocket.router, prefix="/ws", tags=["WebSocket"])
 # Specialized agent runtime endpoints (multi-agent runtime inspired by Apex Sales Pro)
 app.include_router(agent_runtimes.router, prefix="", tags=["Agent Runtime"])
 
-# Static files for uploaded assets
+
+class AvatarStaticFiles(StaticFiles):
+    """StaticFiles that falls back to a default avatar when missing."""
+
+    def __init__(self, *args, fallback_avatar: bytes | None = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fallback_avatar = fallback_avatar
+
+    async def get_response(self, path: str, scope):
+        response = await super().get_response(path, scope)
+        if response.status_code == 404 and path.startswith("avatars/") and self.fallback_avatar:
+            return Response(content=self.fallback_avatar, media_type="image/png")
+        return response
+
+
+# Static files for uploaded assets (with avatar fallback)
 static_dir = Path(__file__).resolve().parents[1] / "static"
 static_dir.mkdir(parents=True, exist_ok=True)
-app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+app.mount(
+    "/static",
+    AvatarStaticFiles(directory=str(static_dir), fallback_avatar=DEFAULT_AVATAR_BYTES),
+    name="static",
+)
 
 @app.get("/health")
 async def health_check():
