@@ -134,13 +134,29 @@ async def websocket_live_voice_call(
         session=session,
     )
 
-    def _normalize_extension(ext: str | None, default: str = ".wav") -> str:
+    def _normalize_extension(ext: str | None, default: str = ".webm") -> str:
+        """Normalize extension or mime-type to a supported suffix for Whisper."""
         allowed = {".flac", ".m4a", ".mp3", ".mp4", ".mpeg", ".mpga", ".oga", ".ogg", ".wav", ".webm"}
+        mime_map = {
+            "audio/webm": ".webm",
+            "audio/ogg": ".ogg",
+            "audio/oga": ".oga",
+            "audio/mpeg": ".mp3",
+            "audio/mp3": ".mp3",
+            "audio/wav": ".wav",
+            "audio/x-wav": ".wav",
+            "audio/mp4": ".mp4",
+            "audio/aac": ".m4a",
+            "audio/flac": ".flac",
+        }
         if not ext:
             return default
         ext = ext.strip().lower()
         if not ext:
             return default
+        # Map mime-type to extension if necessary
+        if "/" in ext:
+            ext = mime_map.get(ext, default)
         if not ext.startswith("."):
             ext = f".{ext}"
         if ext not in allowed:
