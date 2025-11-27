@@ -174,7 +174,8 @@ def _render_invoice_pdf(invoice: Invoice, workspace: Workspace, billed_user: Opt
     pdf = FPDF()
     pdf.add_page()
     brand_primary = (31, 75, 255)
-    brand_muted = (15, 23, 42)
+    brand_dark = (15, 23, 42)
+    brand_light = (241, 245, 249)
 
     def safe(text: str) -> str:
         """Remove characters not supported by core fonts (latin-1)."""
@@ -185,75 +186,105 @@ def _render_invoice_pdf(invoice: Invoice, workspace: Workspace, billed_user: Opt
         except Exception:
             return str(text)
 
-    def header_bar():
-        pdf.set_fill_color(*brand_primary)
-        pdf.rect(0, 0, 210, 20, style="F")
-        pdf.set_text_color(255, 255, 255)
-        pdf.set_font("Helvetica", "B", 16)
-        pdf.set_xy(10, 8)
-        pdf.cell(0, 5, "VoiceAI - Invoice", ln=1)
-        pdf.set_text_color(0, 0, 0)
-
-    header_bar()
-
-    pdf.ln(12)
-    pdf.set_text_color(*brand_muted)
-    pdf.set_font("Helvetica", "B", 14)
-    pdf.cell(0, 8, safe(f"Invoice {invoice.invoice_number}"), ln=1)
+    # Header
+    pdf.set_fill_color(*brand_primary)
+    pdf.rect(0, 0, 210, 30, style="F")
+    pdf.set_text_color(255, 255, 255)
+    pdf.set_font("Helvetica", "B", 18)
+    pdf.set_xy(10, 8)
+    pdf.cell(0, 8, "VoiceAI Invoice", ln=1)
     pdf.set_font("Helvetica", "", 11)
-    pdf.cell(0, 6, safe(f"Status: {invoice.status.capitalize()}"), ln=1)
+    pdf.cell(0, 6, safe(workspace.name), ln=1)
+
+    pdf.ln(8)
+    pdf.set_text_color(*brand_dark)
+
+    # Invoice meta cards
+    pdf.set_fill_color(*brand_light)
+    pdf.set_draw_color(226, 232, 240)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(65, 18, "", border=1, ln=0, fill=True)
+    pdf.set_xy(10, 40)
+    pdf.cell(0, 6, "Invoice", ln=1)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(0, 6, safe(invoice.invoice_number), ln=1)
+
+    pdf.set_xy(80, 32)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(65, 18, "", border=1, ln=0, fill=True)
+    pdf.set_xy(80, 40)
+    pdf.cell(0, 6, "Status", ln=1)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(0, 6, safe(invoice.status.capitalize()), ln=1)
+
+    pdf.set_xy(150, 32)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(50, 18, "", border=1, ln=0, fill=True)
+    pdf.set_xy(150, 40)
+    pdf.cell(0, 6, "Total Due", ln=1)
+    pdf.set_font("Helvetica", "", 11)
+    pdf.cell(0, 6, safe(f"${invoice.amount_cents / 100:.2f} {invoice.currency.upper()}"), ln=1, align="R")
+
+    pdf.ln(20)
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 8, "Billing Summary", ln=1)
+    pdf.set_font("Helvetica", "", 11)
     pdf.cell(0, 6, safe(f"Workspace: {workspace.name} (ID: {workspace.id})"), ln=1)
-    if billed_user:
-        pdf.cell(0, 6, safe(f"Billed To: {billed_user.name} ({billed_user.email})"), ln=1)
     pdf.cell(
         0,
         6,
         safe(f"Period: {invoice.period_start.strftime('%b %d, %Y')} - {invoice.period_end.strftime('%b %d, %Y')}"),
         ln=1,
     )
+    if billed_user:
+        pdf.cell(0, 6, safe(f"Billed To: {billed_user.name} ({billed_user.email})"), ln=1)
+    pdf.cell(0, 6, safe(f"Generated: {invoice.created_at.strftime('%b %d, %Y')}"), ln=1)
 
-    pdf.ln(4)
-    pdf.set_fill_color(*brand_primary)
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(50, 8, safe(f"Total: ${invoice.amount_cents / 100:.2f}"), ln=1, fill=True)
-    pdf.set_text_color(0, 0, 0)
-
-    pdf.ln(4)
+    pdf.ln(6)
     pdf.set_font("Helvetica", "B", 12)
     pdf.cell(95, 8, "Bill To", border=0)
     pdf.cell(0, 8, "From", border=0, ln=1)
     pdf.set_font("Helvetica", "", 11)
     pdf.cell(95, 6, safe(billed_user.name if billed_user else "Workspace Owner"), border=0)
     pdf.cell(0, 6, "VoiceAI Inc.", border=0, ln=1)
-    if billed_user and billed_user.email:
-        pdf.cell(95, 6, safe(billed_user.email), border=0)
-    else:
-        pdf.cell(95, 6, safe(f"Workspace: {workspace.name}"), border=0)
+    pdf.cell(95, 6, safe(billed_user.email if billed_user and billed_user.email else ""), border=0)
     pdf.cell(0, 6, "billing@voiceai.app", border=0, ln=1)
-    pdf.cell(95, 6, "", border=0)
+    pdf.cell(95, 6, safe(f"Workspace: {workspace.name}"), border=0)
     pdf.cell(0, 6, "www.voiceai.app", border=0, ln=1)
 
-    pdf.ln(8)
+    pdf.ln(10)
     pdf.set_fill_color(*brand_primary)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(140, 8, "Description", border=1, fill=True)
-    pdf.cell(40, 8, "Amount", border=1, ln=1, fill=True, align="R")
+    pdf.cell(100, 8, "Description", border=1, fill=True)
+    pdf.cell(25, 8, "Qty", border=1, fill=True, align="C")
+    pdf.cell(30, 8, "Price", border=1, fill=True, align="R")
+    pdf.cell(35, 8, "Amount", border=1, ln=1, fill=True, align="R")
 
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Helvetica", "", 11)
-    pdf.cell(140, 8, safe(invoice.description or "Subscription"), border=1)
-    pdf.cell(40, 8, safe(f"${invoice.amount_cents / 100:.2f}"), border=1, ln=1, align="R")
+    description = invoice.description or f"{workspace.plan.capitalize()} plan"
+    unit_price = invoice.amount_cents / 100
+    pdf.cell(100, 8, safe(description), border=1)
+    pdf.cell(25, 8, "1", border=1, align="C")
+    pdf.cell(30, 8, safe(f"${unit_price:.2f}"), border=1, align="R")
+    pdf.cell(35, 8, safe(f"${invoice.amount_cents / 100:.2f}"), border=1, ln=1, align="R")
 
     pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(140, 8, "Total", border=0)
-    pdf.cell(40, 8, safe(f"${invoice.amount_cents / 100:.2f} {invoice.currency.upper()}"), border=0, ln=1, align="R")
+    pdf.cell(155, 8, "Total", border=0)
+    pdf.cell(35, 8, safe(f"${invoice.amount_cents / 100:.2f} {invoice.currency.upper()}"), border=0, ln=1, align="R")
 
     pdf.ln(10)
     pdf.set_font("Helvetica", "", 10)
-    pdf.set_text_color(*brand_muted)
-    pdf.multi_cell(0, 6, safe("Thank you for choosing VoiceAI. For support contact billing@voiceai.app."))
+    pdf.set_text_color(*brand_dark)
+    pdf.multi_cell(
+        0,
+        6,
+        safe(
+            "Thank you for choosing VoiceAI. For billing questions, contact billing@voiceai.app. "
+            "This invoice is generated for your records and reflects your current subscription."
+        ),
+    )
 
     pdf_bytes = pdf.output(dest="S")
     if isinstance(pdf_bytes, str):

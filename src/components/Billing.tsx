@@ -546,7 +546,7 @@ export function Billing() {
                       {invoice.period ? ` • ${invoice.period}` : null}
                     </p>
                   </div>
-                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4">
                     <span className="text-slate-900">{invoice.amount}</span>
                     <Badge className={invoice.status === "paid" ? "bg-green-500" : "bg-amber-500"}>
                       {invoice.status}
@@ -563,9 +563,16 @@ export function Billing() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleViewInvoice(invoice)}
+                        onClick={() => handleViewPdf(invoice.id)}
                       >
                         View
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewInvoice(invoice)}
+                      >
+                        Details
                       </Button>
                     </div>
                   </div>
