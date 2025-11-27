@@ -20,16 +20,16 @@ export interface TranscriptEntry {
 }
 
 const arrayBufferToBase64 = (buffer: ArrayBuffer) => {
-  let binary = "";
+  // Faster conversion for larger buffers
   const bytes = new Uint8Array(buffer);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i]);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i += 0x8000) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000) as any);
   }
   return btoa(binary);
 };
 
-const base64ToBlob = (base64: string, mime = "audio/mpeg") => {
+const base64ToBlob = (base64: string, mime = "audio/webm") => {
   const byteCharacters = atob(base64);
   const byteNumbers = new Array(byteCharacters.length);
   for (let i = 0; i < byteCharacters.length; i++) {
@@ -260,13 +260,17 @@ export function useLiveCallSession(agentId?: number) {
     if (!chunks.length || wsRef.current?.readyState !== WebSocket.OPEN) {
       return;
     }
-    const blob = new Blob(chunks, { type: chunks[0]?.type || "audio/webm" });
+    // Prefer Ogg/Opus if supported; fall back to webm
+    const firstType = chunks[0]?.type || "";
+    const mimeType = firstType.includes("ogg") ? "audio/ogg" : "audio/webm";
+    const fileExtension = mimeType === "audio/ogg" ? ".ogg" : ".webm";
+    const blob = new Blob(chunks, { type: mimeType });
     const base64 = await arrayBufferToBase64(await blob.arrayBuffer());
     wsRef.current?.send(
       JSON.stringify({
         type: "audio_chunk",
         data: base64,
-        file_extension: ".webm",
+        file_extension: fileExtension,
       }),
     );
     wsRef.current?.send(JSON.stringify({ type: "end_utterance" }));
@@ -290,9 +294,21 @@ export function useLiveCallSession(agentId?: number) {
     if (isRecordingUtterance) return;
 
     const stream = await ensureMicrophone();
-    const recorder = new MediaRecorder(stream, {
-      mimeType: "audio/webm;codecs=opus",
-    });
+    // Try an Ogg/Opus mime first (widely accepted by Whisper); fall back to webm
+    let recorder: MediaRecorder;
+    const preferredTypes = ["audio/ogg;codecs=opus", "audio/webm;codecs=opus", "audio/webm"];
+    let chosenType: string | undefined;
+    for (const mime of preferredTypes) {
+      if (MediaRecorder.isTypeSupported(mime)) {
+        recorder = new MediaRecorder(stream, { mimeType: mime });
+        chosenType = mime;
+        break;
+      }
+    }
+    if (!chosenType) {
+      recorder = new MediaRecorder(stream);
+      chosenType = recorder.mimeType;
+    }
     recorderRef.current = recorder;
     utteranceChunksRef.current = [];
     setIsRecordingUtterance(true);
