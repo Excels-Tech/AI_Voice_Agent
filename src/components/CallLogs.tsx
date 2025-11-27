@@ -30,9 +30,11 @@ export function CallLogs() {
   const [agentsById, setAgentsById] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const formatDuration = (seconds?: number) => {
-    if (seconds === undefined || seconds === null) return "—";
+    if (seconds === undefined || seconds === null) return "--";
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
@@ -56,8 +58,7 @@ export function CallLogs() {
       try {
         const workspaces = await listWorkspaces();
         if (!mounted) return;
-        const activeWorkspace =
-          workspaces?.find((w: any) => w.is_active) ?? workspaces?.[0];
+        const activeWorkspace = workspaces?.find((w: any) => w.is_active) ?? workspaces?.[0];
         const wsId = activeWorkspace?.id ?? activeWorkspace?.workspace_id;
         if (wsId) setWorkspaceId(wsId);
       } catch (err: any) {
@@ -88,6 +89,7 @@ export function CallLogs() {
         });
         setAgentsById(agentMap);
         setCalls(callData || []);
+        setLastUpdated(new Date());
       } catch (err: any) {
         if (!active) return;
         setError(err?.message || "Unable to load call logs");
@@ -97,12 +99,12 @@ export function CallLogs() {
     };
 
     load();
-    const interval = setInterval(load, 5000);
+    const interval = autoRefresh ? setInterval(load, 30000) : null;
     return () => {
       active = false;
-      clearInterval(interval);
+      if (interval) clearInterval(interval);
     };
-  }, [workspaceId]);
+  }, [workspaceId, autoRefresh]);
 
   const filteredCalls = useMemo(() => {
     return calls.filter((call) => {
@@ -152,11 +154,32 @@ export function CallLogs() {
     toast.error("Recording not available yet.");
   };
 
+  const triggerManualRefresh = () => {
+    // briefly disable/enable autoRefresh to run load once via effect
+    setAutoRefresh(false);
+    setTimeout(() => setAutoRefresh(true), 0);
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-slate-900 mb-2">Call Logs</h1>
-        <p className="text-slate-600">Live call history, refreshed automatically</p>
+        <p className="text-slate-600">Call history with optional auto-refresh (every 30s)</p>
+        <div className="flex items-center gap-3 mt-2 text-sm text-slate-600 flex-wrap">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={(e) => setAutoRefresh(e.target.checked)}
+              className="accent-blue-600"
+            />
+            Auto-refresh
+          </label>
+          <Button size="sm" variant="outline" onClick={triggerManualRefresh}>
+            Refresh now
+          </Button>
+          {lastUpdated && <span>Last updated: {lastUpdated.toLocaleTimeString()}</span>}
+        </div>
       </div>
 
       <Card className="bg-white border-slate-200">
@@ -301,7 +324,7 @@ export function CallLogs() {
                         <div className="bg-slate-50 rounded-lg p-3 mb-3">
                           <p className="text-slate-700 text-sm mb-2">{transcriptPreview(call)}</p>
                           <p className="text-slate-900">
-                            <strong>Outcome:</strong> {call.outcome || "—"}
+                            <strong>Outcome:</strong> {call.outcome || "--"}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
