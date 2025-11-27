@@ -193,7 +193,7 @@ async def websocket_live_voice_call(
 
             if event_type == "end_utterance":
                 audio_bytes = state.pop_audio()
-                if not audio_bytes or len(audio_bytes) < 400:
+                if not audio_bytes or len(audio_bytes) < 200:
                     # Send a spoken prompt so the user hears a response
                     assistant_text = "I didn't catch that. Could you please repeat?"
                     assistant_message_id = uuid4().hex

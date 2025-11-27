@@ -117,7 +117,7 @@ class OpenAIService:
         """Transcribe audio to text using Whisper."""
         try:
             # Guard tiny payloads to avoid OpenAI 400s
-            if not audio_file or len(audio_file) < 2048:
+            if not audio_file or len(audio_file) < 512:
                 raise ValueError("Audio too short to transcribe")
 
             if not file_extension.startswith("."):
