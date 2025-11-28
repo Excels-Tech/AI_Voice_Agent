@@ -143,6 +143,32 @@ export function Billing() {
     { brand: "Amex", mask: "3434 343434 34343", label: "Amex •••• 3434", icon: "/card-amex.svg" },
     { brand: "Discover", mask: "6011 0000 0000 0000", label: "Discover •••• 6011", icon: "/card-discover.svg" },
   ];
+  const PAYMENT_METHODS = [
+    {
+      id: "card",
+      label: "Credit / Debit Card",
+      description: "Visa, Mastercard, Amex, Discover",
+      icons: ["/card-visa.svg", "/card-mastercard.svg", "/card-amex.svg", "/card-discover.svg"],
+      cta: "Use card",
+      disabled: false,
+    },
+    {
+      id: "applepay",
+      label: "Apple Pay",
+      description: "Fast checkout on supported devices",
+      icons: ["/apple-pay.svg"],
+      cta: "Coming soon",
+      disabled: true,
+    },
+    {
+      id: "gpay",
+      label: "Google Pay",
+      description: "Tap to pay with Google",
+      icons: ["/google-pay.svg"],
+      cta: "Coming soon",
+      disabled: true,
+    },
+  ];
 
   const hydrateFromCache = () => {
     try {
@@ -572,25 +598,75 @@ export function Billing() {
       <Card className="bg-white border-slate-200">
         <CardHeader className="border-b">
           <div className="flex items-center justify-between">
-            <CardTitle>Payment Method</CardTitle>
+            <CardTitle>Payment Methods</CardTitle>
             <Button variant="outline" onClick={handleUpdatePaymentMethod}>
-              Update Payment Method
+              Change payment
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="p-6">
-          <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg">
+        <CardContent className="p-6 space-y-4">
+          <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
             <CreditCard className="size-8 text-slate-400" />
             <div className="flex-1">
-              <p className="text-slate-900">
+              <p className="text-slate-900 font-medium">
                 {paymentMethod
                   ? `${paymentMethod.brand} ending ${paymentMethod.last4}`
                   : "No payment method on file"}
               </p>
               <p className="text-slate-600 text-sm">
-                {paymentMethod ? `Expires ${paymentMethod.exp_month.toString().padStart(2, "0")}/${paymentMethod.exp_year}` : "Add a card to manage billing"}
+                {paymentMethod
+                  ? `Expires ${paymentMethod.exp_month.toString().padStart(2, "0")}/${paymentMethod.exp_year}`
+                  : "Add a card to keep your subscription active"}
               </p>
             </div>
+            <Button size="sm" variant="outline" onClick={handleUpdatePaymentMethod}>
+              Update
+            </Button>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            {PAYMENT_METHODS.map((method) => (
+              <div
+                key={method.id}
+                className={`rounded-2xl border ${
+                  method.disabled ? "border-dashed border-slate-200" : "border-slate-200"
+                } bg-white p-4 shadow-sm flex flex-col gap-3`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="size-9 rounded-xl bg-slate-100 flex items-center justify-center">
+                    {method.icons?.[0] ? (
+                      <img src={method.icons[0]} alt={method.label} className="h-5 w-auto" />
+                    ) : (
+                      <CreditCard className="size-5 text-slate-500" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-slate-900 font-medium">{method.label}</p>
+                    <p className="text-slate-600 text-xs">{method.description}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {method.icons?.slice(1).map((icon, idx) => (
+                    <img key={idx} src={icon} alt={method.label} className="h-4 w-auto" />
+                  ))}
+                </div>
+                <Button
+                  size="sm"
+                  disabled={method.disabled}
+                  className={
+                    method.disabled
+                      ? "bg-slate-100 text-slate-500"
+                      : "bg-blue-600 hover:bg-blue-700 text-white"
+                  }
+                  onClick={() => {
+                    if (method.disabled) return;
+                    handleUpdatePaymentMethod();
+                  }}
+                >
+                  {method.cta}
+                </Button>
+              </div>
+            ))}
           </div>
         </CardContent>
       </Card>
