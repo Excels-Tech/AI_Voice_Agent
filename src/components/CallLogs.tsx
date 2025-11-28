@@ -188,7 +188,7 @@ export function CallLogs() {
   };
 
   return (
-    <div className="space-y-6 animate-slide-up">
+    <div className="space-y-6">
       <div>
         <h1 className="text-slate-900 mb-2">Call Logs</h1>
         <p className="text-slate-600">Call history with optional auto-refresh (every 30s)</p>

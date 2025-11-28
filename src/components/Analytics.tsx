@@ -18,7 +18,7 @@ export function Analytics() {
   ];
 
   return (
-    <div className="space-y-6 animate-slide-up">
+    <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-slate-900 mb-2">Analytics & Reports</h1>
