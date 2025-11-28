@@ -170,12 +170,16 @@ def _create_invoice_record(
 def _render_invoice_pdf(invoice: Invoice, workspace: Workspace, billed_user: Optional[User]) -> bytes:
     """
     Render a structured, branded PDF for the invoice using FPDF.
+    The layout mirrors a polished SaaS invoice with clear hierarchy and spacing.
     """
-    pdf = FPDF()
+    pdf = FPDF(format="A4")
+    pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
-    brand_primary = (31, 75, 255)
+    brand_primary = (34, 98, 255)
     brand_dark = (15, 23, 42)
-    brand_light = (241, 245, 249)
+    brand_muted = (100, 116, 139)
+    brand_light = (245, 247, 250)
+    border_color = (226, 232, 240)
 
     def safe(text: str) -> str:
         """Remove characters not supported by core fonts (latin-1)."""
@@ -186,48 +190,43 @@ def _render_invoice_pdf(invoice: Invoice, workspace: Workspace, billed_user: Opt
         except Exception:
             return str(text)
 
-    # Header
+    def section_title(text: str):
+        pdf.set_text_color(*brand_dark)
+        pdf.set_font("Helvetica", "B", 12)
+        pdf.cell(0, 8, safe(text), ln=1)
+
+    def meta_card(x: float, title: str, value: str, width: float, align: str = "L"):
+        pdf.set_draw_color(*border_color)
+        pdf.set_fill_color(*brand_light)
+        pdf.set_xy(x, 38)
+        pdf.set_font("Helvetica", "B", 11)
+        pdf.cell(width, 20, "", border=1, ln=0, fill=True)
+        pdf.set_xy(x + 6, 42)
+        pdf.cell(width - 12, 6, safe(title), ln=1)
+        pdf.set_font("Helvetica", "", 11)
+        pdf.set_xy(x + 6, 52)
+        pdf.cell(width - 12, 6, safe(value), ln=1, align=align)
+
+    # Header band
     pdf.set_fill_color(*brand_primary)
-    pdf.rect(0, 0, 210, 30, style="F")
+    pdf.rect(0, 0, 210, 42, style="F")
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("Helvetica", "B", 18)
-    pdf.set_xy(10, 8)
-    pdf.cell(0, 8, "VoiceAI Invoice", ln=1)
+    pdf.set_xy(12, 10)
+    pdf.cell(0, 9, "VoiceAI Invoice", ln=1)
     pdf.set_font("Helvetica", "", 11)
-    pdf.cell(0, 6, safe(workspace.name), ln=1)
+    pdf.cell(0, 6, safe(workspace.name or "Workspace"), ln=1)
 
-    pdf.ln(8)
+    # Meta row
+    meta_card(12, "Invoice", invoice.invoice_number, 62)
+    meta_card(80, "Status", invoice.status.capitalize(), 62)
+    meta_card(148, "Total Due", f"${invoice.amount_cents / 100:.2f} {invoice.currency.upper()}", 50, align="R")
+
+    pdf.set_xy(12, 70)
     pdf.set_text_color(*brand_dark)
 
-    # Invoice meta cards
-    pdf.set_fill_color(*brand_light)
-    pdf.set_draw_color(226, 232, 240)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(65, 18, "", border=1, ln=0, fill=True)
-    pdf.set_xy(10, 40)
-    pdf.cell(0, 6, "Invoice", ln=1)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.cell(0, 6, safe(invoice.invoice_number), ln=1)
-
-    pdf.set_xy(80, 32)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(65, 18, "", border=1, ln=0, fill=True)
-    pdf.set_xy(80, 40)
-    pdf.cell(0, 6, "Status", ln=1)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.cell(0, 6, safe(invoice.status.capitalize()), ln=1)
-
-    pdf.set_xy(150, 32)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(50, 18, "", border=1, ln=0, fill=True)
-    pdf.set_xy(150, 40)
-    pdf.cell(0, 6, "Total Due", ln=1)
-    pdf.set_font("Helvetica", "", 11)
-    pdf.cell(0, 6, safe(f"${invoice.amount_cents / 100:.2f} {invoice.currency.upper()}"), ln=1, align="R")
-
-    pdf.ln(20)
-    pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(0, 8, "Billing Summary", ln=1)
+    pdf.ln(6)
+    section_title("Billing Summary")
     pdf.set_font("Helvetica", "", 11)
     pdf.cell(0, 6, safe(f"Workspace: {workspace.name} (ID: {workspace.id})"), ln=1)
     pdf.cell(
@@ -252,34 +251,41 @@ def _render_invoice_pdf(invoice: Invoice, workspace: Workspace, billed_user: Opt
     pdf.cell(95, 6, safe(f"Workspace: {workspace.name}"), border=0)
     pdf.cell(0, 6, "www.voiceai.app", border=0, ln=1)
 
-    pdf.ln(10)
+    pdf.ln(12)
     pdf.set_fill_color(*brand_primary)
     pdf.set_text_color(255, 255, 255)
     pdf.set_font("Helvetica", "B", 11)
-    pdf.cell(100, 8, "Description", border=1, fill=True)
-    pdf.cell(25, 8, "Qty", border=1, fill=True, align="C")
-    pdf.cell(30, 8, "Price", border=1, fill=True, align="R")
-    pdf.cell(35, 8, "Amount", border=1, ln=1, fill=True, align="R")
+    pdf.cell(95, 10, "Description", border=0, fill=True)
+    pdf.cell(20, 10, "Qty", border=0, fill=True, align="C")
+    pdf.cell(35, 10, "Price", border=0, fill=True, align="R")
+    pdf.cell(30, 10, "Amount", border=0, ln=1, fill=True, align="R")
 
-    pdf.set_text_color(0, 0, 0)
+    pdf.set_text_color(*brand_dark)
     pdf.set_font("Helvetica", "", 11)
+    pdf.set_fill_color(*brand_light)
+    pdf.set_draw_color(*border_color)
+
     description = invoice.description or f"{workspace.plan.capitalize()} plan"
     unit_price = invoice.amount_cents / 100
-    pdf.cell(100, 8, safe(description), border=1)
-    pdf.cell(25, 8, "1", border=1, align="C")
-    pdf.cell(30, 8, safe(f"${unit_price:.2f}"), border=1, align="R")
-    pdf.cell(35, 8, safe(f"${invoice.amount_cents / 100:.2f}"), border=1, ln=1, align="R")
+    line_y = pdf.get_y()
+    pdf.rect(12, line_y, 186, 12, style="DF")
+    pdf.set_xy(12, line_y + 2)
+    pdf.cell(95, 8, safe(description), border=0)
+    pdf.cell(20, 8, "1", border=0, align="C")
+    pdf.cell(35, 8, safe(f"${unit_price:.2f}"), border=0, align="R")
+    pdf.cell(30, 8, safe(f"${invoice.amount_cents / 100:.2f}"), border=0, ln=1, align="R")
 
+    pdf.ln(4)
     pdf.set_font("Helvetica", "B", 12)
-    pdf.cell(155, 8, "Total", border=0)
-    pdf.cell(35, 8, safe(f"${invoice.amount_cents / 100:.2f} {invoice.currency.upper()}"), border=0, ln=1, align="R")
+    pdf.cell(150, 8, "Total", border=0, align="R")
+    pdf.cell(36, 8, safe(f"${invoice.amount_cents / 100:.2f} {invoice.currency.upper()}"), border=0, ln=1, align="R")
 
     pdf.ln(10)
     pdf.set_font("Helvetica", "", 10)
-    pdf.set_text_color(*brand_dark)
+    pdf.set_text_color(*brand_muted)
     pdf.multi_cell(
         0,
-        6,
+        5.5,
         safe(
             "Thank you for choosing VoiceAI. For billing questions, contact billing@voiceai.app. "
             "This invoice is generated for your records and reflects your current subscription."
