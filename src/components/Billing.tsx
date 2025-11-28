@@ -136,6 +136,12 @@ export function Billing() {
     created_at?: string;
   } | null>(null);
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
+  const CARD_TEMPLATES = [
+    { brand: "Visa", mask: "4242 4242 4242 4242", label: "Visa •••• 4242" },
+    { brand: "Mastercard", mask: "5454 5454 5454 5454", label: "Mastercard •••• 5454" },
+    { brand: "Amex", mask: "3434 343434 34343", label: "Amex •••• 3434" },
+    { brand: "Discover", mask: "6011 0000 0000 0000", label: "Discover •••• 6011" },
+  ];
 
   const hydrateFromCache = () => {
     try {
@@ -622,7 +628,7 @@ export function Billing() {
           {invoices.length === 0 ? (
             <p className="text-slate-600 text-sm">No invoices yet. Billing will appear once generated.</p>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
               {invoices.map((invoice) => (
                 <div
                   key={invoice.id}
@@ -635,7 +641,7 @@ export function Billing() {
                       {invoice.period ? ` • ${invoice.period}` : null}
                     </p>
                   </div>
-                    <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4">
                     <span className="text-slate-900">{invoice.amount}</span>
                     <Badge className={invoice.status === "paid" ? "bg-green-500" : "bg-amber-500"}>
                       {invoice.status}
@@ -781,7 +787,7 @@ export function Billing() {
       {/* Payment Method Modal (custom center) */}
       {showPaymentDialog && (
         <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-[900px] rounded-lg border border-slate-200 bg-white shadow-2xl">
+          <div className="w-full max-w-[780px] rounded-2xl border border-slate-200 bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <div>
                 <p className="text-slate-900 text-lg font-semibold">Add a payment method</p>
@@ -796,7 +802,7 @@ export function Billing() {
               </button>
             </div>
 
-            <div className="px-6 py-4 space-y-4 max-h-[75vh] overflow-y-auto">
+            <div className="px-6 py-4 space-y-5 max-h-[75vh] overflow-y-auto">
               {/* Card option */}
               <div className="rounded-lg border border-slate-200">
                 <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-200">
@@ -811,24 +817,62 @@ export function Billing() {
                     />
                     Credit card
                   </label>
-                  <div className="flex items-center gap-1">
-                    {[
-                      { key: "visa", src: "/card-visa.svg", alt: "Visa" },
-                      { key: "mc", src: "/card-mastercard.svg", alt: "Mastercard" },
-                      { key: "amex", src: "/card-amex.svg", alt: "American Express" },
-                      { key: "discover", src: "/card-discover.svg", alt: "Discover" },
-                    ].map((brand) => (
-                      <img
-                        key={brand.key}
-                        src={brand.src}
-                        alt={brand.alt}
-                        className="h-5 w-auto"
-                        loading="lazy"
-                      />
-                    ))}
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={paymentForm.brand}
+                      onChange={(e) => {
+                        const brand = e.target.value;
+                        setPaymentForm({ ...paymentForm, brand });
+                      }}
+                      className="border rounded-md px-2 py-1 text-sm text-slate-700"
+                    >
+                      {CARD_TEMPLATES.map((c) => (
+                        <option key={c.brand} value={c.brand}>
+                          {c.brand}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="flex items-center gap-1">
+                      {[
+                        { key: "visa", src: "/card-visa.svg", alt: "Visa" },
+                        { key: "mc", src: "/card-mastercard.svg", alt: "Mastercard" },
+                        { key: "amex", src: "/card-amex.svg", alt: "American Express" },
+                        { key: "discover", src: "/card-discover.svg", alt: "Discover" },
+                      ].map((brand) => (
+                        <img
+                          key={brand.key}
+                          src={brand.src}
+                          alt={brand.alt}
+                          className="h-5 w-auto"
+                          loading="lazy"
+                        />
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <div className="grid gap-4 px-4 py-4 bg-slate-50">
+                <div className="grid gap-4 px-4 py-5 bg-slate-50">
+                  <div className="flex flex-wrap gap-3 justify-center">
+                    {CARD_TEMPLATES.map((card) => (
+                      <button
+                        key={card.brand}
+                        type="button"
+                        onClick={() =>
+                          setPaymentForm({
+                            ...paymentForm,
+                            brand: card.brand,
+                            cardNumber: card.mask,
+                          })
+                        }
+                        className={`px-3 py-2 rounded-lg border text-sm ${
+                          paymentForm.brand === card.brand
+                            ? "border-blue-500 bg-white shadow-sm"
+                            : "border-slate-200 bg-white hover:border-blue-300"
+                        }`}
+                      >
+                        {card.label}
+                      </button>
+                    ))}
+                  </div>
                   <div className="grid gap-2">
                     <Label htmlFor="name" className="text-slate-700">Cardholder Name</Label>
                     <Input
