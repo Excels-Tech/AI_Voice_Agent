@@ -20,6 +20,7 @@ import {
   Radio,
   Crown,
   Building,
+  Bell,
 } from "lucide-react";
 import { NotificationsPanel } from "./NotificationsPanel";
 import { AgentBuilder } from "./AgentBuilder";
@@ -399,7 +400,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                   onClick={handleOpenNotifications}
                 >
                   <div className="relative">
-                    <Phone className="size-5" />
+                    <Bell className="size-5" />
                     {unreadCount > 0 && (
                       <span className="absolute -top-1 -right-1 min-w-4 px-1 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">
                         {unreadCount > 9 ? "9+" : unreadCount}

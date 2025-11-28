@@ -23,6 +23,7 @@ from app.models.billing import (
     PaymentMethodRead,
     PaymentMethodUpdate,
 )
+from app.models.notification import Notification
 
 router = APIRouter()
 
@@ -146,6 +147,7 @@ def _create_invoice_record(
     period_start, period_end = _current_period(billing_cycle)
     invoice_number = f"INV-{workspace_id}-{int(datetime.utcnow().timestamp())}"
     amount_cents = _plan_amount_cents(plan, billing_cycle)
+    workspace = session.get(Workspace, workspace_id)
     invoice = Invoice(
         workspace_id=workspace_id,
         billed_to_user_id=billed_to_user_id,
@@ -163,6 +165,21 @@ def _create_invoice_record(
     session.refresh(invoice)
     invoice.pdf_url = f"/api/billing/invoices/{invoice.id}/download"
     session.add(invoice)
+    # Drop a notification for billing events so the UI can surface it
+    try:
+        note = Notification(
+            workspace_id=workspace_id,
+            user_id=billed_to_user_id,
+            type="billing",
+            severity="low",
+            title=f"Invoice {invoice.invoice_number} generated",
+            message=f"{plan.capitalize()} plan ({billing_cycle}) for {workspace.name if workspace else 'workspace'} — ${amount_cents/100:.2f}",
+            read=False,
+        )
+        session.add(note)
+    except Exception:
+        # Do not fail invoice creation if notification cannot be created
+        pass
     session.commit()
     return invoice
 
