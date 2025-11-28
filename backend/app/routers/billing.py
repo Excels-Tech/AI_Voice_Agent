@@ -308,6 +308,9 @@ def _render_invoice_pdf(invoice: Invoice, workspace: Workspace, billed_user: Opt
             "This invoice is generated for your records and reflects your current subscription."
         ),
     )
+    pdf.ln(4)
+    pdf.set_font("Helvetica", "I", 9)
+    pdf.cell(0, 5, safe(f"Downloaded: {datetime.utcnow().strftime('%b %d, %Y %H:%M UTC')}"), ln=1)
 
     pdf_bytes = pdf.output(dest="S")
     if isinstance(pdf_bytes, str):
@@ -526,6 +529,17 @@ async def generate_invoice(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only owners/admins can generate invoices",
         )
+
+    # Prevent duplicate invoice for the same period/workspace
+    period_start, _ = _current_period(billing_cycle or "monthly")
+    existing = session.exec(
+        select(Invoice).where(
+            Invoice.workspace_id == workspace_id,
+            Invoice.period_start >= period_start,
+        )
+    ).first()
+    if existing:
+        return existing
 
     invoice = _create_invoice_record(
         session=session,

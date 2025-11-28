@@ -1165,7 +1165,7 @@ export function Billing() {
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="p-6">
+        <CardContent className="p-6 max-h-[480px] overflow-y-auto">
           {invoices.length === 0 ? (
             <p className="text-slate-600 text-sm">No invoices yet. Billing will appear once generated.</p>
           ) : (
