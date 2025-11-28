@@ -629,7 +629,7 @@ export function Billing() {
           {invoices.length === 0 ? (
             <p className="text-slate-600 text-sm">No invoices yet. Billing will appear once generated.</p>
           ) : (
-            <div className={`space-y-3 ${invoicesScrollable ? "max-h-72 overflow-y-auto pr-1" : ""}`}>
+            <div className={`space-y-3 ${invoicesScrollable ? "max-h-80 overflow-y-auto pr-1" : ""}`}>
               {invoices.map((invoice) => (
                 <div
                   key={invoice.id}
@@ -788,25 +788,25 @@ export function Billing() {
       {/* Payment Method Modal (custom center) */}
       {showPaymentDialog && (
         <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-[640px] rounded-2xl border border-slate-200 bg-white shadow-2xl max-h-[82vh] overflow-hidden">
-            <div className="flex items-center justify-between border-b px-5 py-4">
+          <div className="w-full max-w-[560px] rounded-2xl border border-slate-200 bg-white shadow-2xl max-h-[82vh] overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-4 text-white flex items-center justify-between">
               <div>
-                <p className="text-slate-900 text-lg font-semibold">Add a payment method</p>
-                <p className="text-slate-600 text-sm">Update your billing information securely.</p>
+                <p className="text-lg font-semibold">Add a payment method</p>
+                <p className="text-sm text-blue-100">Cards stay encrypted and secure.</p>
               </div>
               <button
                 onClick={() => setShowPaymentDialog(false)}
-                className="text-slate-400 hover:text-slate-600 text-xl leading-none"
+                className="text-blue-50 hover:text-white text-xl leading-none"
                 aria-label="Close payment modal"
               >
                 ×
               </button>
             </div>
 
-            <div className="px-5 py-4 space-y-5 overflow-y-auto">
+            <div className="px-5 py-4 space-y-4 overflow-y-auto bg-slate-50">
               {/* Card option */}
-              <div className="rounded-lg border border-slate-200">
-                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 bg-slate-50">
+              <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+                <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-200">
                   <label className="flex items-center gap-3 text-slate-900 font-medium">
                     <input
                       type="radio"
@@ -833,25 +833,9 @@ export function Billing() {
                         </option>
                       ))}
                     </select>
-                    <div className="flex items-center gap-1">
-                      {[
-                        { key: "visa", src: "/card-visa.svg", alt: "Visa" },
-                        { key: "mc", src: "/card-mastercard.svg", alt: "Mastercard" },
-                        { key: "amex", src: "/card-amex.svg", alt: "American Express" },
-                        { key: "discover", src: "/card-discover.svg", alt: "Discover" },
-                      ].map((brand) => (
-                        <img
-                          key={brand.key}
-                          src={brand.src}
-                          alt={brand.alt}
-                          className="h-5 w-auto"
-                          loading="lazy"
-                        />
-                      ))}
-                    </div>
                   </div>
                 </div>
-                <div className="grid gap-4 px-4 py-5 bg-white">
+                <div className="grid gap-4 px-4 py-4">
                   <div className="flex flex-wrap gap-2 justify-center">
                     {CARD_TEMPLATES.map((card) => (
                       <button
@@ -866,7 +850,7 @@ export function Billing() {
                         }
                         className={`px-3 py-2 rounded-lg border text-sm flex items-center gap-2 ${
                           paymentForm.brand === card.brand
-                            ? "border-blue-500 bg-white shadow-sm"
+                            ? "border-blue-500 bg-blue-50"
                             : "border-slate-200 bg-white hover:border-blue-300"
                         }`}
                       >
@@ -949,7 +933,7 @@ export function Billing() {
               </div>
 
               {/* PayPal placeholder */}
-              <div className="rounded-lg border border-slate-200 bg-white">
+              <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
                 <label className="flex items-center gap-3 px-4 py-3">
                   <input
                     type="radio"
@@ -964,7 +948,7 @@ export function Billing() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t px-6 py-4">
+            <div className="flex items-center justify-end gap-2 border-t px-5 py-4 bg-white">
               <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
                 Cancel
               </Button>
