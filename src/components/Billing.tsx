@@ -5,6 +5,7 @@ import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
+import { Skeleton } from "./ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
-import { CreditCard, Download, Check, AlertCircle, TrendingUp } from "lucide-react";
+import { CreditCard, Download, Check, AlertCircle, TrendingUp, Zap, Shield, Clock, Star } from "lucide-react";
 import { toast } from "sonner";
 import {
   cancelSubscription,
@@ -73,8 +74,30 @@ const DEFAULT_PLANS: Plan[] = [
   },
 ];
 
+function BillingSkeleton() {
+  return (
+    <div className="space-y-8 animate-pulse max-w-7xl mx-auto">
+      <div className="flex justify-between items-center">
+        <div className="space-y-3">
+          <Skeleton className="h-10 w-64 rounded-lg" />
+          <Skeleton className="h-5 w-96 rounded-lg" />
+        </div>
+        <Skeleton className="h-8 w-24 rounded-full" />
+      </div>
+      <Skeleton className="h-56 w-full rounded-2xl" />
+      <div className="grid md:grid-cols-3 gap-6">
+        <Skeleton className="h-40 rounded-2xl" />
+        <Skeleton className="h-40 rounded-2xl" />
+        <Skeleton className="h-40 rounded-2xl" />
+      </div>
+      <Skeleton className="h-80 w-full rounded-2xl" />
+    </div>
+  );
+}
+
 export function Billing() {
   const [workspaceId, setWorkspaceId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">(() => {
     if (typeof window === "undefined") return "monthly";
     try {
@@ -173,9 +196,9 @@ export function Billing() {
   const hydrateFromCache = () => {
     try {
       const raw = localStorage.getItem("billing_cache");
-      if (!raw) return;
+      if (!raw) return false;
       const cached = JSON.parse(raw);
-      if (!cached) return;
+      if (!cached) return false;
       if (cached.subscription) setCurrentPlan(cached.subscription.plan);
       if (cached.plans) setPlans(cached.plans);
       if (Array.isArray(cached.invoices)) {
@@ -208,20 +231,24 @@ export function Billing() {
         });
       }
       if (cached.paymentMethod) setPaymentMethod(cached.paymentMethod);
+      return true;
     } catch {
-      /* ignore cache errors */
+      return false;
     }
   };
 
   useEffect(() => {
     (async () => {
       try {
-        hydrateFromCache();
+        const hasCache = hydrateFromCache();
+        if (!hasCache) setIsLoading(true);
+        
         setIsRefreshing(true);
         const workspaces = await listWorkspaces();
         if (!workspaces?.length) {
           toast.error("No workspace found. Create one to manage billing.");
           setIsRefreshing(false);
+          setIsLoading(false);
           return;
         }
         const wsId = workspaces[0].id ?? workspaces[0].workspace_id ?? 1;
@@ -286,6 +313,7 @@ export function Billing() {
         toast.error(err?.message || "Failed to load billing data");
       } finally {
         setIsRefreshing(false);
+        setIsLoading(false);
       }
     })();
   }, []);
@@ -461,9 +489,6 @@ export function Billing() {
       const blob = await downloadInvoice(invoiceId);
       const url = URL.createObjectURL(blob);
       window.open(url, "_blank");
-      // Note: We can't easily revoke the object URL here if we open it in a new tab, 
-      // but browsers generally handle this cleanup when the document is unloaded.
-      // For a more robust solution, we could use a timeout or a dedicated viewer route.
       setTimeout(() => URL.revokeObjectURL(url), 60000);
     } catch (err: any) {
       toast.error(err?.message || "Failed to view invoice");
@@ -485,57 +510,72 @@ export function Billing() {
   const priceForPlan = (plan: Plan) =>
     billingCycle === "monthly" ? plan.price_monthly : plan.price_annual ?? plan.price_monthly * 10;
 
+  if (isLoading) {
+    return <BillingSkeleton />;
+  }
+
   if (!workspaceId) {
     return <p className="text-slate-600">No workspace available. Create one to manage billing.</p>;
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 animate-slide-up max-w-7xl mx-auto pb-10">
       {/* Header */}
-      <div id="billing-header" className="flex items-start justify-between gap-3 flex-wrap">
+      <div id="billing-header" className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-slate-900 mb-2">Billing & Usage</h1>
-          <p className="text-slate-600">Manage your subscription and track usage</p>
+          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Billing & Usage</h1>
+          <p className="text-slate-500 mt-1 text-lg">Manage your subscription, payment methods, and track usage.</p>
         </div>
         {isRefreshing && (
-          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-            Updating...
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 px-3 py-1 animate-pulse">
+            Syncing...
           </Badge>
         )}
       </div>
 
       {/* Current Plan */}
-      <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 border-0 text-white">
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <Badge className="bg-white/20 text-white border-white/30 mb-3">
-                Current Plan
-              </Badge>
-              <h2 className="text-white mb-2">{currentPlanDetails?.name || currentPlan} Plan</h2>
-              <p className="text-blue-100 mb-4">
-                <span className="text-3xl">
-                  ${currentPlanDetails ? priceForPlan(currentPlanDetails) : 0}
-                </span>{" "}
-                /{billingCycle}
-              </p>
-              <ul className="space-y-2">
-                {currentPlanDetails?.features.map((feature) => (
-                  <li key={feature} className="flex items-center gap-2 text-blue-100">
-                    <Check className="size-4" />
-                    <span>{feature}</span>
-                  </li>
-                )) ?? <li className="text-blue-100 text-sm">No features listed</li>}
-              </ul>
+      <Card className="bg-gradient-to-br from-violet-600 to-indigo-700 border-0 text-white shadow-xl overflow-hidden relative">
+        <div className="absolute top-0 right-0 p-32 bg-white/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+        <CardContent className="p-8 relative z-10">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Badge className="bg-white/20 text-white border-white/30 backdrop-blur-sm px-3 py-1">
+                  Current Plan
+                </Badge>
+                <span className="text-indigo-200 text-sm font-medium">
+                  Renews on {new Date().toLocaleDateString()}
+                </span>
+              </div>
+              <div>
+                <h2 className="text-4xl font-bold text-white mb-1">{currentPlanDetails?.name || currentPlan} Plan</h2>
+                <p className="text-indigo-100 text-lg opacity-90">
+                  <span className="text-3xl font-bold">
+                    ${currentPlanDetails ? priceForPlan(currentPlanDetails) : 0}
+                  </span>{" "}
+                  /{billingCycle}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-x-6 gap-y-2">
+                {currentPlanDetails?.features.slice(0, 3).map((feature) => (
+                  <div key={feature} className="flex items-center gap-2 text-indigo-100">
+                    <div className="bg-white/20 p-0.5 rounded-full">
+                      <Check className="size-3" />
+                    </div>
+                    <span className="text-sm font-medium">{feature}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
               <Button
                 onClick={() =>
                   document.getElementById("plans-section")?.scrollIntoView({ behavior: "smooth" })
                 }
-                className="bg-white text-blue-600 hover:bg-blue-50"
+                className="bg-white text-indigo-600 hover:bg-indigo-50 border-0 font-semibold shadow-lg transition-transform hover:scale-105"
+                size="lg"
               >
-                Change Plan
+                Upgrade Plan
               </Button>
             </div>
           </div>
@@ -544,19 +584,25 @@ export function Billing() {
 
       {/* Usage Stats */}
       <div className="grid md:grid-cols-3 gap-6">
-        <Card className="bg-white border-slate-200">
-          <CardHeader>
-            <CardTitle className="text-slate-900">Minutes Used</CardTitle>
-            <CardDescription>
-              {usage.minutes.used.toLocaleString()} of {usage.minutes.total.toLocaleString()} minutes
-            </CardDescription>
+        <Card className="bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-slate-700 text-base font-medium">Minutes Used</CardTitle>
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <Clock className="size-5 text-blue-600" />
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <Progress value={usage.minutes.percentage} className="mb-2" />
+            <div className="mb-4">
+              <span className="text-3xl font-bold text-slate-900">{usage.minutes.used.toLocaleString()}</span>
+              <span className="text-slate-500 ml-1">/ {usage.minutes.total.toLocaleString()}</span>
+            </div>
+            <Progress value={usage.minutes.percentage} className="h-2 mb-2 bg-slate-100" indicatorClassName={usage.minutes.percentage > 90 ? "bg-red-500" : "bg-blue-600"} />
             <div className="flex items-center justify-between text-sm">
-              <span className="text-slate-600">{usage.minutes.percentage.toFixed(1)}% used</span>
+              <span className="text-slate-500">{usage.minutes.percentage.toFixed(1)}% used</span>
               {usage.minutes.percentage > 80 && (
-                <Badge variant="destructive" className="flex items-center gap-1">
+                <Badge variant="destructive" className="flex items-center gap-1 h-5 px-1.5">
                   <AlertCircle className="size-3" />
                   Near limit
                 </Badge>
@@ -565,295 +611,293 @@ export function Billing() {
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-slate-200">
-          <CardHeader>
-            <CardTitle className="text-slate-900">Total Calls</CardTitle>
-            <CardDescription>{usage.calls.total.toLocaleString()} calls this month</CardDescription>
+        <Card className="bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-slate-700 text-base font-medium">Total Calls</CardTitle>
+              <div className="p-2 bg-green-50 rounded-lg">
+                <TrendingUp className="size-5 text-green-600" />
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="size-5 text-green-500" />
-              <span className="text-2xl text-slate-900">{usage.calls.total.toLocaleString()}</span>
+            <div className="mb-1">
+              <span className="text-3xl font-bold text-slate-900">{usage.calls.total.toLocaleString()}</span>
             </div>
-            <p className="text-slate-600 text-sm mt-2">Unlimited calls included</p>
+            <p className="text-slate-500 text-sm">Calls processed this month</p>
           </CardContent>
         </Card>
 
-        <Card className="bg-white border-slate-200">
-          <CardHeader>
-            <CardTitle className="text-slate-900">Active Agents</CardTitle>
-            <CardDescription>{usage.agents.active} agents deployed</CardDescription>
+        <Card className="bg-white border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-slate-700 text-base font-medium">Active Agents</CardTitle>
+              <div className="p-2 bg-purple-50 rounded-lg">
+                <Zap className="size-5 text-purple-600" />
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="size-5 text-blue-500" />
-              <span className="text-2xl text-slate-900">{usage.agents.active}</span>
+            <div className="mb-1">
+              <span className="text-3xl font-bold text-slate-900">{usage.agents.active}</span>
             </div>
-            <p className="text-slate-600 text-sm mt-2">Unlimited agents included</p>
+            <p className="text-slate-500 text-sm">Active voice agents deployed</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Payment Method */}
-      <Card className="bg-white border-slate-200">
-        <CardHeader className="border-b">
-          <div className="flex items-center justify-between">
-            <CardTitle>Payment Methods</CardTitle>
-            <Button variant="outline" onClick={handleUpdatePaymentMethod}>
-              Change payment
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6 space-y-4">
-          <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-            <CreditCard className="size-8 text-slate-400" />
-            <div className="flex-1">
-              <p className="text-slate-900 font-medium">
-                {paymentMethod
-                  ? `${paymentMethod.brand} ending ${paymentMethod.last4}`
-                  : "No payment method on file"}
-              </p>
-              <p className="text-slate-600 text-sm">
-                {paymentMethod
-                  ? `Expires ${paymentMethod.exp_month.toString().padStart(2, "0")}/${paymentMethod.exp_year}`
-                  : "Add a card to keep your subscription active"}
-              </p>
-            </div>
-            <Button size="sm" variant="outline" onClick={handleUpdatePaymentMethod}>
-              Update
-            </Button>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-3">
-            {PAYMENT_METHODS.map((method) => (
-              <div
-                key={method.id}
-                className={`rounded-2xl border ${
-                  method.disabled ? "border-dashed border-slate-200" : "border-slate-200"
-                } bg-white p-4 shadow-sm flex flex-col gap-3`}
-              >
-                <div className="flex items-center gap-2">
-                  <div className="size-9 rounded-xl bg-slate-100 flex items-center justify-center">
-                    {method.icons?.[0] ? (
-                      <img src={method.icons[0]} alt={method.label} className="h-5 w-auto" />
-                    ) : (
-                      <CreditCard className="size-5 text-slate-500" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-slate-900 font-medium">{method.label}</p>
-                    <p className="text-slate-600 text-xs">{method.description}</p>
-                  </div>
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* Payment Method */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card className="bg-white border-slate-200 shadow-sm h-full">
+            <CardHeader className="border-b border-slate-100 pb-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Payment Methods</CardTitle>
+                  <CardDescription>Manage your payment details</CardDescription>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {method.icons?.slice(1).map((icon, idx) => (
-                    <img key={idx} src={icon} alt={method.label} className="h-4 w-auto" />
-                  ))}
-                </div>
-                <Button
-                  size="sm"
-                  disabled={method.disabled}
-                  className={
-                    method.disabled
-                      ? "bg-slate-100 text-slate-500"
-                      : "bg-blue-600 hover:bg-blue-700 text-white"
-                  }
-                  onClick={() => {
-                    if (method.disabled) return;
-                    handleUpdatePaymentMethod();
-                  }}
-                >
-                  {method.cta}
+                <Button variant="outline" size="sm" onClick={handleUpdatePaymentMethod}>
+                  Add New
                 </Button>
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Cancel Subscription */}
-      <Card className="bg-red-50 border-red-200">
-        <CardHeader>
-          <CardTitle className="text-red-900">Cancel Subscription</CardTitle>
-          <CardDescription className="text-red-700">
-            Permanently cancel your subscription
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <p className="text-red-800">
-              Your subscription will remain active until the end of the billing period.
-            </p>
-            <Button variant="destructive" onClick={handleCancelSubscription}>
-              Cancel Subscription
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Invoice History */}
-      <Card className="bg-white border-slate-200">
-        <CardHeader className="border-b">
-          <div className="flex items-center justify-between gap-4">
-            <CardTitle>Invoice History</CardTitle>
-            <Button variant="outline" size="sm" onClick={handleGenerateInvoice} disabled={!workspaceId || isGeneratingInvoice}>
-              {isGeneratingInvoice ? "Generating..." : "Generate Invoice"}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6">
-          {invoices.length === 0 ? (
-            <p className="text-slate-600 text-sm">No invoices yet. Billing will appear once generated.</p>
-          ) : (
-            <div className={`space-y-3 ${invoicesScrollable ? "max-h-80 overflow-y-auto pr-1" : ""}`}>
-              {invoices.map((invoice) => (
-                <div
-                  key={invoice.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50"
-                >
-                  <div>
-                    <p className="text-slate-900">{invoice.invoice_number}</p>
-                    <p className="text-slate-600 text-sm">
-                      {invoice.date}
-                      {invoice.period ? ` • ${invoice.period}` : null}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <span className="text-slate-900">{invoice.amount}</span>
-                    <Badge className={invoice.status === "paid" ? "bg-green-500" : "bg-amber-500"}>
-                      {invoice.status}
-                    </Badge>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownloadInvoice(invoice.id, invoice.invoice_number)}
-                      >
-                        <Download className="size-4 mr-2" />
-                        Download
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleViewPdf(invoice.id)}
-                      >
-                        View
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleViewInvoice(invoice)}
-                      >
-                        Details
-                      </Button>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              {paymentMethod ? (
+                <div className="relative overflow-hidden rounded-2xl bg-slate-900 text-white p-6 shadow-lg max-w-md mx-auto md:mx-0">
+                  <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white/10 rounded-full blur-xl" />
+                  <div className="relative z-10 flex flex-col justify-between h-full min-h-[160px]">
+                    <div className="flex justify-between items-start">
+                      <div className="space-y-1">
+                        <p className="text-xs text-slate-400 uppercase tracking-wider font-medium">Current Method</p>
+                        <p className="font-semibold text-lg tracking-wide capitalize">{paymentMethod.brand}</p>
+                      </div>
+                      {paymentMethod.brand.toLowerCase() === 'visa' ? (
+                        <img src="/card-visa.svg" alt="Visa" className="h-8 bg-white rounded px-1" />
+                      ) : (
+                        <CreditCard className="h-8 w-8 text-slate-300" />
+                      )}
+                    </div>
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
+                        </div>
+                        <div className="flex gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
+                        </div>
+                        <div className="flex gap-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-white/50" />
+                        </div>
+                        <span className="font-mono text-xl tracking-widest">{paymentMethod.last4}</span>
+                      </div>
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wider">Card Holder</p>
+                          <p className="font-medium tracking-wide">{paymentMethod.cardholder_name || "Valued Customer"}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] text-slate-400 uppercase tracking-wider">Expires</p>
+                          <p className="font-medium tracking-wide">
+                            {paymentMethod.exp_month.toString().padStart(2, "0")}/{paymentMethod.exp_year.toString().slice(-2)}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              ) : (
+                <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  <div className="bg-white p-3 rounded-full shadow-sm inline-flex mb-3">
+                    <CreditCard className="size-6 text-slate-400" />
+                  </div>
+                  <p className="text-slate-900 font-medium">No payment method</p>
+                  <p className="text-slate-500 text-sm mb-4">Add a card to ensure uninterrupted service</p>
+                  <Button onClick={handleUpdatePaymentMethod}>Add Payment Method</Button>
+                </div>
+              )}
+
+              <div className="pt-4 border-t border-slate-100">
+                <h4 className="text-sm font-medium text-slate-900 mb-3">Accepted Payment Methods</h4>
+                <div className="flex gap-3 flex-wrap">
+                  {PAYMENT_METHODS.map((method) => (
+                    <div
+                      key={method.id}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
+                        method.disabled ? "bg-slate-50 border-slate-100 opacity-60" : "bg-white border-slate-200"
+                      }`}
+                    >
+                      {method.icons?.[0] && <img src={method.icons[0]} alt={method.label} className="h-4 w-auto" />}
+                      <span className="text-sm text-slate-700">{method.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Invoice History */}
+        <div className="lg:col-span-1">
+          <Card className="bg-white border-slate-200 shadow-sm h-full flex flex-col">
+            <CardHeader className="border-b border-slate-100 pb-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Invoices</CardTitle>
+                <Button variant="ghost" size="sm" onClick={handleGenerateInvoice} disabled={!workspaceId || isGeneratingInvoice} className="h-8 text-xs">
+                  {isGeneratingInvoice ? "..." : "Generate"}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="p-0 flex-1 overflow-hidden flex flex-col">
+              {invoices.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                  <div className="bg-slate-50 p-3 rounded-full mb-3">
+                    <Download className="size-5 text-slate-400" />
+                  </div>
+                  <p className="text-slate-600 text-sm">No invoices yet</p>
+                </div>
+              ) : (
+                <div className="overflow-y-auto flex-1 max-h-[400px]">
+                  {invoices.map((invoice) => (
+                    <div
+                      key={invoice.id}
+                      className="flex items-center justify-between p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer group"
+                      onClick={() => handleViewInvoice(invoice)}
+                    >
+                      <div>
+                        <p className="text-slate-900 font-medium text-sm">{invoice.date}</p>
+                        <p className="text-slate-500 text-xs">{invoice.invoice_number}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-slate-900 font-medium text-sm">{invoice.amount}</p>
+                        <Badge variant="secondary" className={`text-[10px] px-1.5 h-5 ${invoice.status === "paid" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}>
+                          {invoice.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
+      {/* Cancel Subscription */}
+      <div className="flex justify-end">
+        <Button variant="ghost" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleCancelSubscription}>
+          Cancel Subscription
+        </Button>
+      </div>
 
       {/* All Plans */}
       <div
         id="plans-section"
-        className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 rounded-2xl border border-slate-200/60 shadow-sm p-6 md:p-10"
+        className="bg-slate-50 rounded-3xl border border-slate-200 p-8 md:p-12"
       >
-        <div className="text-center max-w-3xl mx-auto mb-8 space-y-3">
-          <p className="text-blue-600 font-semibold">Simple, Transparent Pricing</p>
-          <h2 className="text-3xl md:text-4xl text-slate-900">Choose the plan that&apos;s right for you</h2>
-          <p className="text-slate-600">
-            Pick a plan and start building without surprises. All plans include secure billing and support.
+        <div className="text-center max-w-3xl mx-auto mb-12 space-y-4">
+          <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-200 border-0 px-3 py-1 text-sm">Pricing Plans</Badge>
+          <h2 className="text-3xl md:text-4xl font-bold text-slate-900">Choose the plan that fits your needs</h2>
+          <p className="text-slate-600 text-lg">
+            Simple, transparent pricing. No hidden fees.
           </p>
-          <div className="flex items-center justify-center gap-2 mt-2">
-            <span className="text-sm text-slate-600">Billing cycle</span>
-            <div className="inline-flex rounded-full border border-blue-200 bg-white p-1 shadow-sm">
+          
+          <div className="flex items-center justify-center mt-6">
+            <div className="bg-white p-1 rounded-full border border-slate-200 shadow-sm inline-flex">
               <button
                 onClick={() => setBillingCycle("monthly")}
-                className={`px-4 py-1 text-sm rounded-full transition ${
+                className={`px-6 py-2 text-sm font-medium rounded-full transition-all ${
                   billingCycle === "monthly"
-                    ? "bg-blue-600 text-white shadow"
-                    : "text-slate-700 hover:bg-blue-50"
+                    ? "bg-slate-900 text-white shadow-md"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
                 Monthly
               </button>
               <button
                 onClick={() => setBillingCycle("annual")}
-                className={`px-4 py-1 text-sm rounded-full transition ${
+                className={`px-6 py-2 text-sm font-medium rounded-full transition-all ${
                   billingCycle === "annual"
-                    ? "bg-blue-600 text-white shadow"
-                    : "text-slate-700 hover:bg-blue-50"
+                    ? "bg-slate-900 text-white shadow-md"
+                    : "text-slate-600 hover:text-slate-900"
                 }`}
               >
-                Annual
+                Annual <span className="text-green-500 text-xs ml-1 font-bold">-17%</span>
               </button>
             </div>
           </div>
         </div>
-        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto justify-items-center">
+
+        <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {plans.map((plan) => {
             const isCurrent = currentPlan === plan.id;
             const isFeatured = plan.id === "professional";
             const isSelected = selectedPlanId ? selectedPlanId === plan.id : isCurrent;
+            
             return (
               <Card
                 key={plan.id}
-                className={`flex flex-col h-full w-full max-w-sm rounded-3xl border transition ${
+                className={`flex flex-col h-full relative transition-all duration-300 ${
                   isSelected
-                    ? "border-blue-500 shadow-2xl ring-2 ring-blue-500/25"
-                    : "border-slate-200 shadow-lg"
-                } bg-white`}
+                    ? "border-blue-500 shadow-xl scale-105 z-10 ring-1 ring-blue-500"
+                    : "border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1"
+                } bg-white rounded-2xl overflow-hidden`}
               >
-                <CardHeader className="text-center space-y-3 pb-2 pt-6 px-6">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-slate-900">{plan.name}</CardTitle>
-                    {isCurrent && <Badge className="bg-green-500">Current</Badge>}
-                  </div>
+                {isFeatured && (
+                  <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-blue-500 to-indigo-600" />
+                )}
+                <CardHeader className="text-center pt-8 pb-4 px-6">
                   {isFeatured && (
-                    <div className="flex justify-center">
-                      <Badge className="bg-blue-600">Most Popular</Badge>
-                    </div>
+                    <Badge className="bg-blue-50 text-blue-700 border-blue-100 mb-4 mx-auto w-fit">
+                      Most Popular
+                    </Badge>
                   )}
-                  <div className="flex items-baseline justify-center gap-2">
-                    <span className="text-4xl text-slate-900">${priceForPlan(plan)}</span>
-                    <span className="text-slate-600">/{billingCycle === "monthly" ? "month" : "year"}</span>
+                  <CardTitle className="text-2xl font-bold text-slate-900">{plan.name}</CardTitle>
+                  <div className="flex items-baseline justify-center gap-1 mt-4">
+                    <span className="text-4xl font-bold text-slate-900">${priceForPlan(plan)}</span>
+                    <span className="text-slate-500 font-medium">/{billingCycle === "monthly" ? "mo" : "yr"}</span>
                   </div>
-                  {billingCycle === "annual" && (
-                    <p className="text-green-600 text-xs">Save up to 17% billed annually</p>
-                  )}
+                  <p className="text-slate-500 text-sm mt-2">
+                    {billingCycle === "annual" ? "Billed annually" : "Billed monthly"}
+                  </p>
                 </CardHeader>
-                <CardContent className="flex flex-col flex-1 px-6 pb-6">
-                  <ul className="space-y-3 mb-6 text-left">
+                <CardContent className="flex flex-col flex-1 px-8 pb-8">
+                  <div className="w-full h-px bg-slate-100 my-6" />
+                  <ul className="space-y-4 mb-8 flex-1">
                     {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <Check className="size-5 text-green-500 shrink-0 mt-0.5" />
-                        <span className="text-slate-700">{feature}</span>
+                      <li key={idx} className="flex items-start gap-3">
+                        <div className="mt-0.5 bg-green-50 p-0.5 rounded-full shrink-0">
+                          <Check className="size-3.5 text-green-600" />
+                        </div>
+                        <span className="text-slate-600 text-sm font-medium">{feature}</span>
                       </li>
                     ))}
                   </ul>
-                  <div className="mt-auto">
-                    {isCurrent ? (
-                      <Button className="w-full bg-green-500 hover:bg-green-600" disabled>
-                        Current Plan
-                      </Button>
-                    ) : (
-                      <Button
-                        className={`w-full ${
-                          isFeatured
-                            ? "bg-blue-600 hover:bg-blue-700"
-                            : "bg-slate-100 text-slate-900 hover:bg-slate-200"
-                        }`}
-                        onClick={() => {
-                          setSelectedPlanId(plan.id);
-                          handleUpgrade(plan.id);
-                        }}
-                      >
-                        {plan.id === "enterprise" ? "Contact Sales" : "Start Free Trial"}
-                      </Button>
-                    )}
-                  </div>
+                  <Button
+                    size="lg"
+                    className={`w-full font-semibold shadow-sm ${
+                      isCurrent
+                        ? "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
+                        : isFeatured
+                        ? "bg-blue-600 hover:bg-blue-700 text-white"
+                        : "bg-slate-900 text-white hover:bg-slate-800"
+                    }`}
+                    disabled={isCurrent}
+                    onClick={() => {
+                      setSelectedPlanId(plan.id);
+                      handleUpgrade(plan.id);
+                    }}
+                  >
+                    {isCurrent ? "Current Plan" : plan.id === "enterprise" ? "Contact Sales" : "Upgrade"}
+                  </Button>
                 </CardContent>
               </Card>
             );
@@ -861,187 +905,152 @@ export function Billing() {
         </div>
       </div>
 
-      {/* Payment Method Modal (custom center) */}
+      {/* Payment Method Modal */}
       {showPaymentDialog && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 px-4 modal-fade">
-          <div className="w-full max-w-[520px] rounded-3xl border border-slate-200 bg-white shadow-2xl max-h-[82vh] overflow-hidden modal-slide">
-            <div className="bg-gradient-to-r from-blue-700 to-indigo-600 px-5 py-4 text-white flex items-center justify-between">
-              <div>
-                <p className="text-lg font-semibold">Add a payment method</p>
-                <p className="text-sm text-blue-100">Cards stay encrypted and secure.</p>
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 modal-fade">
+          <div className="w-full max-w-[520px] rounded-2xl bg-white shadow-2xl max-h-[90vh] overflow-hidden modal-slide flex flex-col">
+            <div className="bg-slate-900 px-6 py-5 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="bg-white/10 p-2 rounded-lg">
+                  <Shield className="size-5 text-blue-300" />
+                </div>
+                <div>
+                  <p className="text-lg font-semibold">Add Payment Method</p>
+                  <p className="text-xs text-slate-300 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
+                    Encrypted & Secure
+                  </p>
+                </div>
               </div>
               <button
                 onClick={() => setShowPaymentDialog(false)}
-                className="text-blue-50 hover:text-white text-xl leading-none"
+                className="text-slate-400 hover:text-white transition-colors p-1"
                 aria-label="Close payment modal"
               >
-                ×
+                <span className="text-2xl leading-none">×</span>
               </button>
             </div>
 
-            <div className="px-5 py-4 space-y-4 overflow-y-auto bg-slate-50">
+            <div className="px-6 py-6 space-y-6 overflow-y-auto bg-slate-50 flex-1">
               {/* Card option */}
-              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-200">
-                  <label className="flex items-center gap-3 text-slate-900 font-medium">
-                    <input
-                      type="radio"
-                      name="paymentType"
-                      value="card"
-                      checked={selectedPaymentType === "card"}
-                      onChange={() => setSelectedPaymentType("card")}
-                      className="accent-blue-600"
-                    />
-                    Credit card
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={paymentForm.brand}
-                      onChange={(e) => {
-                        const brand = e.target.value;
-                        setPaymentForm({ ...paymentForm, brand });
-                      }}
-                      className="border rounded-md px-2 py-1 text-sm text-slate-700 bg-white"
-                    >
-                      {CARD_TEMPLATES.map((c) => (
-                        <option key={c.brand} value={c.brand}>
-                          {c.brand}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  <button
+                    className={`flex-1 py-3 px-4 rounded-xl border font-medium text-sm flex items-center justify-center gap-2 transition-all ${
+                      selectedPaymentType === "card"
+                        ? "bg-white border-blue-500 text-blue-600 shadow-sm ring-1 ring-blue-500/20"
+                        : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                    }`}
+                    onClick={() => setSelectedPaymentType("card")}
+                  >
+                    <CreditCard className="size-4" />
+                    Card
+                  </button>
+                  <button
+                    className={`flex-1 py-3 px-4 rounded-xl border font-medium text-sm flex items-center justify-center gap-2 transition-all ${
+                      selectedPaymentType === "paypal"
+                        ? "bg-white border-blue-500 text-blue-600 shadow-sm ring-1 ring-blue-500/20"
+                        : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                    }`}
+                    onClick={() => setSelectedPaymentType("paypal")}
+                  >
+                    <span className="font-bold italic">Pay</span><span className="italic">Pal</span>
+                  </button>
                 </div>
-                <div className="grid gap-4 px-4 py-4">
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    {CARD_TEMPLATES.map((card) => (
-                      <button
-                        key={card.brand}
-                        type="button"
-                        onClick={() =>
-                          setPaymentForm({
-                            ...paymentForm,
-                            brand: card.brand,
-                            cardNumber: card.mask,
-                          })
-                        }
-                        className={`px-3 py-2 rounded-lg border text-sm flex items-center gap-2 transition ${
-                          paymentForm.brand === card.brand
-                            ? "border-blue-500 bg-blue-50 shadow-sm"
-                            : "border-slate-200 bg-white hover:border-blue-200"
-                        }`}
-                      >
-                        {card.icon ? (
-                          <img src={card.icon} alt={card.brand} className="h-4 w-auto" />
-                        ) : null}
-                        <span>{card.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="name" className="text-slate-700">Cardholder Name</Label>
-                    <Input
-                      id="name"
-                      value={paymentForm.cardholderName}
-                      onChange={(e) => setPaymentForm({ ...paymentForm, cardholderName: e.target.value })}
-                      placeholder="John Doe"
-                      disabled={selectedPaymentType !== "card"}
-                      className="bg-white"
-                    />
-                  </div>
 
-                  <div className="grid gap-2">
-                    <Label htmlFor="number" className="text-slate-700">Card number</Label>
-                    <Input
-                      id="number"
-                      value={paymentForm.cardNumber}
-                      onChange={(e) => setPaymentForm({ ...paymentForm, cardNumber: e.target.value })}
-                      placeholder="1234 1234 1234 1234"
-                      disabled={selectedPaymentType !== "card"}
-                      className="bg-white"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-3">
+                {selectedPaymentType === "card" && (
+                  <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
                     <div className="grid gap-2">
-                      <Label htmlFor="month" className="text-slate-700">Expiry month</Label>
+                      <Label htmlFor="name" className="text-slate-700 text-xs uppercase font-semibold tracking-wider">Cardholder Name</Label>
                       <Input
-                        id="month"
-                        value={paymentForm.expMonth}
-                        onChange={(e) => setPaymentForm({ ...paymentForm, expMonth: e.target.value })}
-                        placeholder="MM"
-                        disabled={selectedPaymentType !== "card"}
-                        className="bg-white"
+                        id="name"
+                        value={paymentForm.cardholderName}
+                        onChange={(e) => setPaymentForm({ ...paymentForm, cardholderName: e.target.value })}
+                        placeholder="John Doe"
+                        className="bg-slate-50 border-slate-200 focus:bg-white transition-colors"
                       />
                     </div>
+
                     <div className="grid gap-2">
-                      <Label htmlFor="year" className="text-slate-700">Expiry year</Label>
-                      <Input
-                        id="year"
-                        value={paymentForm.expYear}
-                        onChange={(e) => setPaymentForm({ ...paymentForm, expYear: e.target.value })}
-                        placeholder="YYYY"
-                        disabled={selectedPaymentType !== "card"}
-                        className="bg-white"
-                      />
+                      <Label htmlFor="number" className="text-slate-700 text-xs uppercase font-semibold tracking-wider">Card Number</Label>
+                      <div className="relative">
+                        <Input
+                          id="number"
+                          value={paymentForm.cardNumber}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, cardNumber: e.target.value })}
+                          placeholder="0000 0000 0000 0000"
+                          className="bg-slate-50 border-slate-200 focus:bg-white transition-colors pl-10 font-mono"
+                        />
+                        <CreditCard className="absolute left-3 top-2.5 size-4 text-slate-400" />
+                        <div className="absolute right-3 top-2.5 flex gap-1">
+                          {CARD_TEMPLATES.map(c => (
+                             <img key={c.brand} src={c.icon} alt={c.brand} className={`h-4 w-auto transition-opacity ${paymentForm.brand === c.brand ? 'opacity-100' : 'opacity-30'}`} />
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="cvc" className="text-slate-700">Security code</Label>
-                      <Input
-                        id="cvc"
-                        value={paymentForm.cvc}
-                        onChange={(e) => setPaymentForm({ ...paymentForm, cvc: e.target.value })}
-                        placeholder="CVC"
-                        disabled={selectedPaymentType !== "card"}
-                        className="bg-white"
-                      />
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="grid gap-2">
+                        <Label className="text-slate-700 text-xs uppercase font-semibold tracking-wider">Expiry Date</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            value={paymentForm.expMonth}
+                            onChange={(e) => setPaymentForm({ ...paymentForm, expMonth: e.target.value })}
+                            placeholder="MM"
+                            className="bg-slate-50 border-slate-200 focus:bg-white transition-colors text-center"
+                            maxLength={2}
+                          />
+                          <span className="text-slate-300 text-xl">/</span>
+                          <Input
+                            value={paymentForm.expYear}
+                            onChange={(e) => setPaymentForm({ ...paymentForm, expYear: e.target.value })}
+                            placeholder="YY"
+                            className="bg-slate-50 border-slate-200 focus:bg-white transition-colors text-center"
+                            maxLength={4}
+                          />
+                        </div>
+                      </div>
+                      <div className="grid gap-2">
+                        <Label htmlFor="cvc" className="text-slate-700 text-xs uppercase font-semibold tracking-wider">CVC / CWW</Label>
+                        <Input
+                          id="cvc"
+                          value={paymentForm.cvc}
+                          onChange={(e) => setPaymentForm({ ...paymentForm, cvc: e.target.value })}
+                          placeholder="123"
+                          className="bg-slate-50 border-slate-200 focus:bg-white transition-colors font-mono"
+                          maxLength={4}
+                        />
+                      </div>
                     </div>
                   </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="billingEmail" className="text-slate-700">Billing email</Label>
-                    <Input
-                      id="billingEmail"
-                      value={paymentForm.billingEmail}
-                      onChange={(e) => setPaymentForm({ ...paymentForm, billingEmail: e.target.value })}
-                      placeholder="billing@email.com"
-                      disabled={selectedPaymentType !== "card"}
-                      className="bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* PayPal placeholder */}
-              <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-                <label className="flex items-center gap-3 px-4 py-3">
-                  <input
-                    type="radio"
-                    name="paymentType"
-                    value="paypal"
-                    checked={selectedPaymentType === "paypal"}
-                    onChange={() => setSelectedPaymentType("paypal")}
-                    className="accent-blue-600"
-                  />
-                  <span className="text-slate-900 font-medium">PayPal</span>
-                </label>
+                )}
+                
+                {selectedPaymentType === "paypal" && (
+                   <div className="bg-blue-50 p-6 rounded-xl border border-blue-100 text-center">
+                      <p className="text-blue-800 font-medium mb-2">Connect your PayPal account</p>
+                      <p className="text-blue-600 text-sm">You will be redirected to PayPal to complete the setup.</p>
+                   </div>
+                )}
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t px-5 py-4 bg-white">
-              <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4 bg-white shrink-0">
+              <Button variant="ghost" onClick={() => setShowPaymentDialog(false)} className="text-slate-600 hover:bg-slate-50">
                 Cancel
               </Button>
               <Button
                 onClick={handleSavePaymentMethod}
                 disabled={isSavingPayment}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                className="bg-slate-900 hover:bg-slate-800 text-white min-w-[100px]"
               >
-                {isSavingPayment ? "Saving..." : "Add"}
+                {isSavingPayment ? "Saving..." : "Save Card"}
               </Button>
             </div>
           </div>
         </div>
       )}
+      
       {/* Cancel Subscription Dialog */}
       <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <DialogContent className="sm:max-w-[500px]">
@@ -1076,37 +1085,40 @@ export function Billing() {
             <DialogDescription className="text-slate-600">Review your invoice information.</DialogDescription>
           </DialogHeader>
           {selectedInvoice && (
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-600">Invoice</span>
-                <span className="font-medium text-slate-900">{selectedInvoice.invoice_number}</span>
+            <div className="space-y-4 text-sm bg-slate-50 p-4 rounded-lg border border-slate-100">
+              <div className="flex justify-between border-b border-slate-200 pb-2">
+                <span className="text-slate-500">Invoice Number</span>
+                <span className="font-mono font-medium text-slate-900">{selectedInvoice.invoice_number}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">Amount</span>
-                <span className="font-medium text-slate-900">
-                  {selectedInvoice.amount} {selectedInvoice.currency || ""}
+              <div className="flex justify-between border-b border-slate-200 pb-2">
+                <span className="text-slate-500">Amount</span>
+                <span className="font-bold text-slate-900 text-lg">
+                  {selectedInvoice.amount}
                 </span>
               </div>
               {selectedInvoice.period && (
-                <div className="flex justify-between">
-                  <span className="text-slate-600">Period</span>
+                <div className="flex justify-between border-b border-slate-200 pb-2">
+                  <span className="text-slate-500">Billing Period</span>
                   <span className="font-medium text-slate-900">{selectedInvoice.period}</span>
                 </div>
               )}
-              <div className="flex justify-between">
-                <span className="text-slate-600">Status</span>
-                <span className="font-medium text-slate-900 capitalize">{selectedInvoice.status}</span>
+              <div className="flex justify-between items-center">
+                <span className="text-slate-500">Status</span>
+                <Badge className={selectedInvoice.status === "paid" ? "bg-green-100 text-green-700 hover:bg-green-100" : "bg-amber-100 text-amber-700 hover:bg-amber-100"}>
+                  {selectedInvoice.status.toUpperCase()}
+                </Badge>
               </div>
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowInvoiceDialog(false)}>
               Close
             </Button>
             {selectedInvoice && (
-              <>
+              <div className="flex gap-2 w-full sm:w-auto">
                 <Button
                   variant="outline"
+                  className="flex-1 sm:flex-none"
                   onClick={() => {
                     const match = invoices.find((inv) => inv.invoice_number === selectedInvoice.invoice_number);
                     if (match) handleViewPdf(match.id);
@@ -1115,14 +1127,16 @@ export function Billing() {
                   View PDF
                 </Button>
                 <Button
+                  className="flex-1 sm:flex-none bg-slate-900 text-white hover:bg-slate-800"
                   onClick={() => {
                     const match = invoices.find((inv) => inv.invoice_number === selectedInvoice.invoice_number);
                     if (match) handleDownloadInvoice(match.id, match.invoice_number);
                   }}
                 >
+                  <Download className="size-4 mr-2" />
                   Download
                 </Button>
-              </>
+              </div>
             )}
           </DialogFooter>
         </DialogContent>

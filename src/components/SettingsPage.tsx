@@ -109,7 +109,7 @@ export function SettingsPage({ user, onUserUpdate }: SettingsPageProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-slide-up">
       <div>
         <h1 className="text-slate-900 mb-2">Account Settings</h1>
         <p className="text-slate-600">Manage your account preferences and settings</p>

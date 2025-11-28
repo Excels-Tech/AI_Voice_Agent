@@ -470,7 +470,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
       </nav>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 page-fade">
+      <main className="container mx-auto px-4 py-8 animate-slide-up">
         {notificationPreview && (
           <Card className="mb-4 bg-blue-50 border-blue-200">
             <CardContent className="p-4">
