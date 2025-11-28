@@ -864,8 +864,8 @@ export function Billing() {
       {/* Payment Method Modal (custom center) */}
       {showPaymentDialog && (
         <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 px-4 modal-fade">
-          <div className="w-full max-w-[560px] rounded-2xl border border-slate-200 bg-white shadow-2xl max-h-[82vh] overflow-hidden modal-slide">
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-4 text-white flex items-center justify-between">
+          <div className="w-full max-w-[520px] rounded-3xl border border-slate-200 bg-white shadow-2xl max-h-[82vh] overflow-hidden modal-slide">
+            <div className="bg-gradient-to-r from-blue-700 to-indigo-600 px-5 py-4 text-white flex items-center justify-between">
               <div>
                 <p className="text-lg font-semibold">Add a payment method</p>
                 <p className="text-sm text-blue-100">Cards stay encrypted and secure.</p>
@@ -881,7 +881,7 @@ export function Billing() {
 
             <div className="px-5 py-4 space-y-4 overflow-y-auto bg-slate-50">
               {/* Card option */}
-              <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
                 <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-slate-200">
                   <label className="flex items-center gap-3 text-slate-900 font-medium">
                     <input
@@ -924,10 +924,10 @@ export function Billing() {
                             cardNumber: card.mask,
                           })
                         }
-                        className={`px-3 py-2 rounded-lg border text-sm flex items-center gap-2 ${
+                        className={`px-3 py-2 rounded-lg border text-sm flex items-center gap-2 transition ${
                           paymentForm.brand === card.brand
-                            ? "border-blue-500 bg-blue-50"
-                            : "border-slate-200 bg-white hover:border-blue-300"
+                            ? "border-blue-500 bg-blue-50 shadow-sm"
+                            : "border-slate-200 bg-white hover:border-blue-200"
                         }`}
                       >
                         {card.icon ? (
