@@ -136,6 +136,7 @@ export function Billing() {
     created_at?: string;
   } | null>(null);
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
+  const invoicesScrollable = invoices.length >= 5;
   const CARD_TEMPLATES = [
     { brand: "Visa", mask: "4242 4242 4242 4242", label: "Visa •••• 4242" },
     { brand: "Mastercard", mask: "5454 5454 5454 5454", label: "Mastercard •••• 5454" },
@@ -628,7 +629,7 @@ export function Billing() {
           {invoices.length === 0 ? (
             <p className="text-slate-600 text-sm">No invoices yet. Billing will appear once generated.</p>
           ) : (
-            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+            <div className={`space-y-3 ${invoicesScrollable ? "max-h-72 overflow-y-auto pr-1" : ""}`}>
               {invoices.map((invoice) => (
                 <div
                   key={invoice.id}
@@ -787,8 +788,8 @@ export function Billing() {
       {/* Payment Method Modal (custom center) */}
       {showPaymentDialog && (
         <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-[780px] rounded-2xl border border-slate-200 bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b px-6 py-4">
+          <div className="w-full max-w-[640px] rounded-2xl border border-slate-200 bg-white shadow-2xl max-h-[82vh] overflow-hidden">
+            <div className="flex items-center justify-between border-b px-5 py-4">
               <div>
                 <p className="text-slate-900 text-lg font-semibold">Add a payment method</p>
                 <p className="text-slate-600 text-sm">Update your billing information securely.</p>
@@ -802,10 +803,10 @@ export function Billing() {
               </button>
             </div>
 
-            <div className="px-6 py-4 space-y-5 max-h-[75vh] overflow-y-auto">
+            <div className="px-5 py-4 space-y-5 overflow-y-auto">
               {/* Card option */}
               <div className="rounded-lg border border-slate-200">
-                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-200">
+                <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-200 bg-slate-50">
                   <label className="flex items-center gap-3 text-slate-900 font-medium">
                     <input
                       type="radio"
@@ -824,7 +825,7 @@ export function Billing() {
                         const brand = e.target.value;
                         setPaymentForm({ ...paymentForm, brand });
                       }}
-                      className="border rounded-md px-2 py-1 text-sm text-slate-700"
+                      className="border rounded-md px-2 py-1 text-sm text-slate-700 bg-white"
                     >
                       {CARD_TEMPLATES.map((c) => (
                         <option key={c.brand} value={c.brand}>
@@ -850,8 +851,8 @@ export function Billing() {
                     </div>
                   </div>
                 </div>
-                <div className="grid gap-4 px-4 py-5 bg-slate-50">
-                  <div className="flex flex-wrap gap-3 justify-center">
+                <div className="grid gap-4 px-4 py-5 bg-white">
+                  <div className="flex flex-wrap gap-2 justify-center">
                     {CARD_TEMPLATES.map((card) => (
                       <button
                         key={card.brand}
@@ -863,13 +864,13 @@ export function Billing() {
                             cardNumber: card.mask,
                           })
                         }
-                        className={`px-3 py-2 rounded-lg border text-sm ${
+                        className={`px-3 py-2 rounded-lg border text-sm flex items-center gap-2 ${
                           paymentForm.brand === card.brand
                             ? "border-blue-500 bg-white shadow-sm"
                             : "border-slate-200 bg-white hover:border-blue-300"
                         }`}
                       >
-                        {card.label}
+                        <span>{card.label}</span>
                       </button>
                     ))}
                   </div>
