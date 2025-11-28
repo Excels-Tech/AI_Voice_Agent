@@ -75,7 +75,15 @@ const DEFAULT_PLANS: Plan[] = [
 
 export function Billing() {
   const [workspaceId, setWorkspaceId] = useState<number | null>(null);
-  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">(() => {
+    if (typeof window === "undefined") return "monthly";
+    try {
+      const saved = localStorage.getItem("billing_cycle");
+      return saved === "annual" ? "annual" : "monthly";
+    } catch {
+      return "monthly";
+    }
+  });
   const [usage, setUsage] = useState<UsageState>({
     minutes: { used: 0, total: 5000, percentage: 0 },
     calls: { total: 0 },
@@ -239,6 +247,14 @@ export function Billing() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("billing_cycle", billingCycle);
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [billingCycle]);
 
   const currentPlanDetails = useMemo(
     () => plans.find((p) => p.id === currentPlan) ?? DEFAULT_PLANS.find((p) => p.id === currentPlan),
@@ -722,7 +738,11 @@ export function Billing() {
                       </Button>
                     ) : (
                       <Button
-                        className={`w-full ${isFeatured ? "bg-blue-600 hover:bg-blue-700" : "bg-slate-900 hover:bg-slate-800"}`}
+                        className={`w-full ${
+                          isFeatured
+                            ? "bg-blue-600 hover:bg-blue-700"
+                            : "bg-slate-100 text-slate-900 hover:bg-slate-200"
+                        }`}
                         onClick={() => handleUpgrade(plan.id)}
                       >
                         {plan.id === "enterprise" ? "Contact Sales" : "Start Free Trial"}
