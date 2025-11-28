@@ -181,7 +181,14 @@ export function Billing() {
       disabled: true,
     },
   ];
-  const COUNTRIES = ["United States", "Canada", "United Kingdom", "Germany", "France", "India", "Australia", "Brazil", "Japan", "Singapore"];
+  const COUNTRIES = [
+    "United States", "Canada", "United Kingdom", "Germany", "France", "Italy", "Spain", "Netherlands", "Sweden", "Norway",
+    "Denmark", "Finland", "Ireland", "Switzerland", "Austria", "Belgium", "Portugal", "Greece", "Poland", "Czech Republic",
+    "Hungary", "Romania", "Turkey", "Israel", "United Arab Emirates", "Saudi Arabia", "Qatar", "India", "Pakistan", "Bangladesh",
+    "Sri Lanka", "Nepal", "China", "Japan", "South Korea", "Singapore", "Malaysia", "Indonesia", "Philippines", "Thailand",
+    "Vietnam", "Australia", "New Zealand", "Brazil", "Mexico", "Argentina", "Chile", "Colombia", "Peru", "South Africa", "Nigeria",
+    "Kenya", "Egypt"
+  ];
   const [emailForPayment, setEmailForPayment] = useState("");
   const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "exists" | "new">("idle");
   const [continueAsGuest, setContinueAsGuest] = useState(false);
@@ -200,6 +207,12 @@ export function Billing() {
     email: "",
     country: "",
   });
+  const [paypalConfig, setPaypalConfig] = useState<{ clientId: string; clientSecret: string; mode: "sandbox" | "live" }>({
+    clientId: "",
+    clientSecret: "",
+    mode: "sandbox",
+  });
+  const [showPaypalCreds, setShowPaypalCreds] = useState(false);
   const [applePayConfig, setApplePayConfig] = useState<{ merchantId: string; domain: string }>({
     merchantId: "",
     domain: "",
@@ -558,9 +571,9 @@ export function Billing() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="bg-gradient-to-r from-blue-700 to-indigo-600 px-6 py-4 text-white rounded-t-2xl">
-              <p className="text-lg font-semibold">Payment options</p>
-              <p className="text-sm text-blue-100">Cards stay encrypted and secure.</p>
+            <div className="bg-slate-100 px-6 py-4 rounded-t-2xl">
+              <p className="text-lg font-semibold text-slate-900">Payment options</p>
+              <p className="text-sm text-slate-700">Cards stay encrypted and secure.</p>
             </div>
 
             <div className="px-6 py-5 space-y-4">
@@ -689,10 +702,12 @@ export function Billing() {
                   <select
                     value={selectedCountry}
                     onChange={(e) => setSelectedCountry(e.target.value)}
-                    className="border rounded-md px-3 py-2 text-sm text-slate-800 bg-white"
+                    className="border rounded-md px-3 py-2 text-sm text-slate-900 bg-white flex-1 min-w-[200px]"
                   >
                     <option value="">Select country</option>
-                    {COUNTRIES.map((c) => (
+                    {COUNTRIES.filter((c) =>
+                      c.toLowerCase().includes(countryQuery.toLowerCase())
+                    ).map((c) => (
                       <option key={c} value={c}>
                         {c}
                       </option>
@@ -702,24 +717,8 @@ export function Billing() {
                     placeholder="Search country"
                     value={countryQuery}
                     onChange={(e) => setCountryQuery(e.target.value)}
-                    className="bg-white flex-1 min-w-[180px]"
+                    className="bg-white flex-1 min-w-[200px] text-slate-900"
                   />
-                </div>
-                <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto">
-                  {COUNTRIES.filter((c) =>
-                    c.toLowerCase().includes(countryQuery.toLowerCase())
-                  ).map((c) => (
-                    <button
-                      key={c}
-                      type="button"
-                      onClick={() => setSelectedCountry(c)}
-                      className={`px-3 py-1 rounded-full border text-sm ${
-                        selectedCountry === c ? "border-blue-500 bg-blue-50 text-slate-900" : "border-slate-200 bg-white text-slate-800"
-                      }`}
-                    >
-                      {c}
-                    </button>
-                  ))}
                 </div>
               </div>
 
@@ -1719,15 +1718,51 @@ export function Billing() {
                           {open && methodId === "bank" && (
                             <div className="px-4 pb-4 space-y-3 text-sm text-slate-700">
                               <p>Enter bank transfer details (placeholder — connect to your provider).</p>
-                              <Input placeholder="Account holder name" className="bg-white" />
-                              <Input placeholder="IBAN / Account number" className="bg-white" />
-                              <Input placeholder="Routing / SWIFT" className="bg-white" />
+                              <Input placeholder="Account holder name" className="bg-white text-slate-900" />
+                              <Input placeholder="IBAN / Account number" className="bg-white text-slate-900" />
+                              <Input placeholder="Routing / SWIFT" className="bg-white text-slate-900" />
                             </div>
                           )}
                           {open && methodId === "paypal" && (
                             <div className="px-4 pb-4 space-y-3 text-sm text-slate-700">
                               <p>Pay securely with PayPal.</p>
-                              <Button variant="outline" size="sm" className="w-full">Connect PayPal</Button>
+                              {!showPaypalCreds ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="w-full"
+                                  onClick={() => setShowPaypalCreds(true)}
+                                >
+                                  Connect PayPal
+                                </Button>
+                              ) : (
+                                <div className="grid gap-3">
+                                  <Input
+                                    placeholder="PayPal Client ID"
+                                    value={paypalConfig.clientId}
+                                    onChange={(e) => setPaypalConfig((p) => ({ ...p, clientId: e.target.value }))}
+                                    className="bg-white text-slate-900"
+                                  />
+                                  <Input
+                                    placeholder="PayPal Client Secret"
+                                    type="password"
+                                    value={paypalConfig.clientSecret}
+                                    onChange={(e) => setPaypalConfig((p) => ({ ...p, clientSecret: e.target.value }))}
+                                    className="bg-white text-slate-900"
+                                  />
+                                  <select
+                                    value={paypalConfig.mode}
+                                    onChange={(e) => setPaypalConfig((p) => ({ ...p, mode: e.target.value as "sandbox" | "live" }))}
+                                    className="border rounded-md px-2 py-1 text-sm text-slate-900 bg-white"
+                                  >
+                                    <option value="sandbox">Sandbox</option>
+                                    <option value="live">Live</option>
+                                  </select>
+                                  <Button size="sm" variant="outline" disabled className="w-full">
+                                    Save credentials (wire to backend)
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           )}
                           {open && (methodId === "applepay" || methodId === "gpay") && (
