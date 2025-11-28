@@ -573,9 +573,9 @@ export function Billing() {
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="bg-slate-100 px-6 py-4 rounded-t-2xl">
-              <p className="text-lg font-semibold text-slate-900">Payment options</p>
-              <p className="text-sm text-slate-700">Cards stay encrypted and secure.</p>
+            <div className="bg-gradient-to-r from-blue-700 to-indigo-600 px-6 py-4 rounded-t-2xl text-white">
+              <p className="text-lg font-semibold">Payment options</p>
+              <p className="text-sm text-blue-100">Cards stay encrypted and secure.</p>
             </div>
 
             <div className="px-6 py-5 space-y-4">
@@ -875,15 +875,15 @@ export function Billing() {
                                 value={applePayConfig.merchantId}
                                 onChange={(e) => setApplePayConfig((p) => ({ ...p, merchantId: e.target.value }))}
                                 placeholder="Apple Pay Merchant ID"
-                                className="bg-white"
+                                className="bg-white text-slate-900"
                               />
                               <Input
                                 value={applePayConfig.domain}
                                 onChange={(e) => setApplePayConfig((p) => ({ ...p, domain: e.target.value }))}
                                 placeholder="Merchant domain (e.g., pay.example.com)"
-                                className="bg-white"
+                                className="bg-white text-slate-900"
                               />
-                              <Button size="sm" variant="outline" disabled className="w-full">
+                              <Button size="sm" variant="outline" className="w-full bg-blue-50 text-blue-800 border-blue-200">
                                 Save to backend (wire to provider)
                               </Button>
                             </>
@@ -895,15 +895,15 @@ export function Billing() {
                                 value={gpayConfig.merchantId}
                                 onChange={(e) => setGpayConfig((p) => ({ ...p, merchantId: e.target.value }))}
                                 placeholder="Google Pay Merchant ID"
-                                className="bg-white"
+                                className="bg-white text-slate-900"
                               />
                               <Input
                                 value={gpayConfig.gatewayMerchantId}
                                 onChange={(e) => setGpayConfig((p) => ({ ...p, gatewayMerchantId: e.target.value }))}
                                 placeholder="Gateway merchant ID (Stripe/Adyen)"
-                                className="bg-white"
+                                className="bg-white text-slate-900"
                               />
-                              <Button size="sm" variant="outline" disabled className="w-full">
+                              <Button size="sm" variant="outline" className="w-full bg-blue-50 text-blue-800 border-blue-200">
                                 Save to backend (wire to provider)
                               </Button>
                             </>
@@ -1728,11 +1728,11 @@ export function Billing() {
                           {open && methodId === "paypal" && (
                             <div className="px-4 pb-4 space-y-3 text-sm text-slate-700">
                               <p>Pay securely with PayPal.</p>
-                              {!showPaypalCreds ? (
+                          {!showPaypalCreds ? (
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="w-full"
+                                  className="w-full bg-blue-50 text-blue-800 border-blue-200"
                                   onClick={() => setShowPaypalCreds(true)}
                                 >
                                   Connect PayPal
@@ -1760,7 +1760,7 @@ export function Billing() {
                                     <option value="sandbox">Sandbox</option>
                                     <option value="live">Live</option>
                                   </select>
-                                  <Button size="sm" variant="outline" disabled className="w-full">
+                                  <Button size="sm" variant="outline" className="w-full bg-blue-50 text-blue-800 border-blue-200">
                                     Save credentials (wire to backend)
                                   </Button>
                                 </div>
