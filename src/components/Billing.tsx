@@ -194,6 +194,8 @@ export function Billing() {
   const [savedProfiles, setSavedProfiles] = useState<{ id: string; label: string; email: string; country: string }[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [profileNote, setProfileNote] = useState<string>("");
+  const toggleMethod = (id: string) =>
+    setExpandedMethod((prev) => (prev === id ? "" : id));
 
   const hydrateFromCache = () => {
     try {
@@ -524,6 +526,364 @@ export function Billing() {
 
   if (!workspaceId) {
     return <p className="text-slate-600">No workspace available. Create one to manage billing.</p>;
+  }
+
+  if (showPaymentDialog) {
+    return (
+      <div className="min-h-screen bg-slate-50 page-fade">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-sm text-slate-500">Billing / Payment Methods</p>
+              <h1 className="text-slate-900 text-xl font-semibold">Update payment method</h1>
+              <p className="text-slate-600 text-sm">Keep your subscription active by adding a payment method.</p>
+            </div>
+            <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
+              Back to Billing
+            </Button>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="bg-gradient-to-r from-blue-700 to-indigo-600 px-6 py-4 text-white rounded-t-2xl">
+              <p className="text-lg font-semibold">Payment options</p>
+              <p className="text-sm text-blue-100">Cards stay encrypted and secure.</p>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              {/* Email verification / profiles */}
+              <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Label className="text-slate-700">Billing email</Label>
+                  {emailStatus === "exists" && (
+                    <Badge className="bg-green-100 text-green-700" variant="outline">
+                      Account found
+                    </Badge>
+                  )}
+                  {emailStatus === "new" && (
+                    <Badge className="bg-blue-100 text-blue-700" variant="outline">
+                      New guest
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Input
+                    value={emailForPayment}
+                    onChange={async (e) => {
+                      const next = e.target.value;
+                      setEmailForPayment(next);
+                      setEmailStatus("checking");
+                      const exists = await mockCheckEmailExists(next);
+                      setEmailStatus(exists ? "exists" : "new");
+                    }}
+                    placeholder="name@email.com"
+                  />
+                  <div className="flex items-center gap-2 flex-wrap text-sm text-slate-600">
+                    {emailStatus === "exists" && (
+                      <>
+                        <span>Enter password to continue</span>
+                        <Input
+                          type="password"
+                          value={paymentPassword}
+                          onChange={(e) => setPaymentPassword(e.target.value)}
+                          className="w-48"
+                          placeholder="Password"
+                        />
+                        <Button variant="ghost" size="sm" onClick={() => setContinueAsGuest(true)}>
+                          Continue as guest
+                        </Button>
+                      </>
+                    )}
+                    {emailStatus === "new" && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCreateAccount((p) => !p)}
+                      >
+                        {createAccount ? "Skip account" : "Create account"}
+                      </Button>
+                    )}
+                  </div>
+                  {createAccount && (
+                    <Input
+                      type="password"
+                      value={paymentPassword}
+                      onChange={(e) => setPaymentPassword(e.target.value)}
+                      className="w-56"
+                      placeholder="Set password for new account"
+                    />
+                  )}
+                </div>
+                {savedProfiles.length > 0 && (
+                  <div className="grid gap-2">
+                    <Label className="text-slate-700">Saved billing profiles</Label>
+                    <div className="flex flex-col gap-2">
+                      {savedProfiles.map((profile) => (
+                        <button
+                          key={profile.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedProfileId(profile.id);
+                            setEmailForPayment(profile.email);
+                            setSelectedCountry(profile.country);
+                          }}
+                          className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left ${
+                            selectedProfileId === profile.id
+                              ? "border-blue-500 bg-blue-50"
+                              : "border-slate-200 bg-white hover:border-blue-300"
+                          }`}
+                        >
+                          <div>
+                            <p className="text-slate-900 text-sm">{profile.label}</p>
+                            <p className="text-slate-600 text-xs">{profile.email} · {profile.country}</p>
+                          </div>
+                          <Button variant="ghost" size="sm">
+                            Edit
+                          </Button>
+                        </button>
+                      ))}
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={profileNote}
+                          onChange={(e) => setProfileNote(e.target.value)}
+                          placeholder="Add notes or label"
+                          className="flex-1"
+                        />
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const id = `p-${Date.now()}`;
+                            setSavedProfiles((prev) => [
+                              ...prev,
+                              { id, label: profileNote || "New profile", email: emailForPayment, country: selectedCountry || "United States" },
+                            ]);
+                            setProfileNote("");
+                          }}
+                        >
+                          Add profile
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Country search */}
+              <div className="grid gap-2">
+                <Label className="text-slate-700">Country</Label>
+                <Input
+                  placeholder="Search country"
+                  value={countryQuery}
+                  onChange={(e) => setCountryQuery(e.target.value)}
+                  className="bg-white"
+                />
+                <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto">
+                  {COUNTRIES.filter((c) =>
+                    c.toLowerCase().includes(countryQuery.toLowerCase())
+                  ).map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setSelectedCountry(c)}
+                      className={`px-3 py-1 rounded-full border text-sm ${
+                        selectedCountry === c ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white"
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Payment methods */}
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <Label className="text-slate-700">Payment method</Label>
+                  <p className="text-slate-500 text-xs">Select to expand its details</p>
+                </div>
+                <select
+                  value={expandedMethod}
+                  onChange={(e) => toggleMethod(e.target.value)}
+                  className="border rounded-md px-2 py-1 text-sm text-slate-700 bg-white"
+                >
+                  <option value="card">Credit / Debit Card</option>
+                  <option value="bank">Bank Transfer</option>
+                  <option value="paypal">PayPal</option>
+                  <option value="applepay">Apple Pay</option>
+                  <option value="gpay">Google Pay</option>
+                </select>
+              </div>
+
+              <div className="grid gap-3">
+                {["card", "bank", "paypal", "applepay", "gpay"].map((methodId) => {
+                  const meta = PAYMENT_METHODS.find((m) => m.id === methodId);
+                  const open = expandedMethod === methodId;
+                  return (
+                    <div
+                      key={methodId}
+                      className={`rounded-xl border ${open ? "border-blue-400 shadow-sm" : "border-slate-200"} bg-white`}
+                    >
+                      <button
+                        type="button"
+                        className="w-full flex items-center justify-between px-4 py-3"
+                        onClick={() => toggleMethod(methodId)}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="size-9 rounded-lg bg-slate-100 flex items-center justify-center">
+                            <CreditCard className="size-5 text-slate-500" />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-slate-900 font-medium">
+                              {meta?.label || methodId.toUpperCase()}
+                            </p>
+                            <p className="text-slate-600 text-xs">
+                              {meta?.description || "Payment option"}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-sm text-blue-600">
+                          {open ? "Collapse" : "Expand"}
+                        </span>
+                      </button>
+                      {open && methodId === "card" && (
+                        <div className="px-4 pb-4 space-y-3">
+                          <div className="flex flex-wrap gap-2">
+                            {CARD_TEMPLATES.map((card) => (
+                              <button
+                                key={card.brand}
+                                type="button"
+                                onClick={() =>
+                                  setPaymentForm({
+                                    ...paymentForm,
+                                    brand: card.brand,
+                                    cardNumber: card.mask,
+                                  })
+                                }
+                                className={`px-3 py-2 rounded-lg border text-sm flex items-center gap-2 transition ${
+                                  paymentForm.brand === card.brand
+                                    ? "border-blue-500 bg-blue-50 shadow-sm"
+                                    : "border-slate-200 bg-white hover:border-blue-200"
+                                }`}
+                              >
+                                {card.icon ? (
+                                  <img src={card.icon} alt={card.brand} className="h-4 w-auto" />
+                                ) : null}
+                                <span>{card.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                          <div className="grid gap-2">
+                            <Label className="text-slate-700">Cardholder Name</Label>
+                            <Input
+                              value={paymentForm.cardholderName}
+                              onChange={(e) => setPaymentForm({ ...paymentForm, cardholderName: e.target.value })}
+                              placeholder="John Doe"
+                              className="bg-white"
+                            />
+                          </div>
+
+                          <div className="grid gap-2">
+                            <Label className="text-slate-700">Card number</Label>
+                            <Input
+                              value={paymentForm.cardNumber}
+                              onChange={(e) => setPaymentForm({ ...paymentForm, cardNumber: e.target.value })}
+                              placeholder="1234 1234 1234 1234"
+                              className="bg-white"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="grid gap-2">
+                              <Label className="text-slate-700">Expiry month</Label>
+                              <Input
+                                value={paymentForm.expMonth}
+                                onChange={(e) => setPaymentForm({ ...paymentForm, expMonth: e.target.value })}
+                                placeholder="MM"
+                                className="bg-white"
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label className="text-slate-700">Expiry year</Label>
+                              <Input
+                                value={paymentForm.expYear}
+                                onChange={(e) => setPaymentForm({ ...paymentForm, expYear: e.target.value })}
+                                placeholder="YYYY"
+                                className="bg-white"
+                              />
+                            </div>
+                            <div className="grid gap-2">
+                              <Label className="text-slate-700">Security code</Label>
+                              <Input
+                                value={paymentForm.cvc}
+                                onChange={(e) => setPaymentForm({ ...paymentForm, cvc: e.target.value })}
+                                placeholder="CVC"
+                                className="bg-white"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {open && methodId === "bank" && (
+                        <div className="px-4 pb-4 space-y-3 text-sm text-slate-700">
+                          <p>Enter bank transfer details (placeholder — connect to your provider).</p>
+                          <Input placeholder="Account holder name" className="bg-white" />
+                          <Input placeholder="IBAN / Account number" className="bg-white" />
+                          <Input placeholder="Routing / SWIFT" className="bg-white" />
+                        </div>
+                      )}
+                      {open && methodId === "paypal" && (
+                        <div className="px-4 pb-4 space-y-3 text-sm text-slate-700">
+                          <p>Pay securely with PayPal.</p>
+                          <Button variant="outline" size="sm" className="w-full">Connect PayPal</Button>
+                        </div>
+                      )}
+                      {open && (methodId === "applepay" || methodId === "gpay") && (
+                        <div className="px-4 pb-4 space-y-2 text-sm text-slate-700">
+                          <p>Coming soon. This UI is ready; hook into your payment provider (Stripe Payment Request) to enable.</p>
+                          <Button size="sm" disabled className="w-full bg-slate-100 text-slate-500">Coming soon</Button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Discount code */}
+              <div className="rounded-xl border border-slate-200 bg-white p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-slate-900 font-medium">Discount code</p>
+                    <p className="text-slate-600 text-sm">Optional — reveal only when needed.</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setDiscountOpen((p) => !p)}>
+                    {discountOpen ? "Hide" : "Add discount code"}
+                  </Button>
+                </div>
+                {discountOpen && (
+                  <div className="mt-3">
+                    <Input placeholder="Enter discount code" className="bg-white" />
+                  </div>
+                )}
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSavePaymentMethod}
+                  disabled={isSavingPayment}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {isSavingPayment ? "Saving..." : "Save payment method"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
