@@ -96,7 +96,7 @@ export function Billing() {
     }[]
   >([]);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [isSavingPayment, setIsSavingPayment] = useState(false);
   const [selectedPaymentType, setSelectedPaymentType] = useState<"card" | "paypal">("card");
@@ -168,11 +168,11 @@ export function Billing() {
     (async () => {
       try {
         hydrateFromCache();
-        setIsLoading(true);
+        setIsRefreshing(true);
         const workspaces = await listWorkspaces();
         if (!workspaces?.length) {
           toast.error("No workspace found. Create one to manage billing.");
-          setIsLoading(false);
+          setIsRefreshing(false);
           return;
         }
         const wsId = workspaces[0].id ?? workspaces[0].workspace_id ?? 1;
@@ -235,7 +235,7 @@ export function Billing() {
         console.error(err);
         toast.error(err?.message || "Failed to load billing data");
       } finally {
-        setIsLoading(false);
+        setIsRefreshing(false);
       }
     })();
   }, []);
@@ -418,14 +418,6 @@ export function Billing() {
   const priceForPlan = (plan: Plan) =>
     billingCycle === "monthly" ? plan.price_monthly : plan.price_annual ?? plan.price_monthly * 10;
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <p className="text-slate-600">Loading billing data...</p>
-      </div>
-    );
-  }
-
   if (!workspaceId) {
     return <p className="text-slate-600">No workspace available. Create one to manage billing.</p>;
   }
@@ -433,9 +425,16 @@ export function Billing() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div id="plans-section">
-        <h1 className="text-slate-900 mb-2">Billing & Usage</h1>
-        <p className="text-slate-600">Manage your subscription and track usage</p>
+      <div id="billing-header" className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-slate-900 mb-2">Billing & Usage</h1>
+          <p className="text-slate-600">Manage your subscription and track usage</p>
+        </div>
+        {isRefreshing && (
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+            Updating...
+          </Badge>
+        )}
       </div>
 
       {/* Current Plan */}
@@ -640,61 +639,72 @@ export function Billing() {
       </Card>
 
       {/* All Plans */}
-      <div id="plans-section">
-        <h2 className="text-slate-900 mb-4">Available Plans</h2>
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {plans.map((plan) => (
-            <Card
-              key={plan.id}
-              className={`bg-white ${plan.id === currentPlan ? "border-blue-500 border-2" : "border-slate-200"}`}
-            >
-              <CardHeader>
-                <div className="flex items-center justify-between mb-2">
-                  <CardTitle>{plan.name}</CardTitle>
-                  {plan.id === currentPlan && <Badge className="bg-blue-500">Current</Badge>}
-                </div>
-                <CardDescription>
-                  <span className="text-slate-900 text-3xl">${priceForPlan(plan)}</span>
-                  <span className="text-slate-600"> /{billingCycle}</span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-6">
-                  <div className="flex items-baseline gap-2 mb-2">
-                    <span className="text-4xl text-slate-900">
-                      ${priceForPlan(plan)}
-                    </span>
-                    <span className="text-slate-600">/{billingCycle === "monthly" ? "mo" : "yr"}</span>
+      <div
+        id="plans-section"
+        className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 rounded-2xl border border-slate-200/60 shadow-sm p-6 md:p-10"
+      >
+        <div className="text-center max-w-3xl mx-auto mb-10">
+          <p className="text-blue-600 font-semibold">Simple, Transparent Pricing</p>
+          <h2 className="text-3xl md:text-4xl text-slate-900 mb-2">Choose the plan that&apos;s right for you</h2>
+          <p className="text-slate-600">
+            Pick a plan and start building without surprises. All plans include secure billing and support.
+          </p>
+        </div>
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto justify-items-center">
+          {plans.map((plan) => {
+            const isCurrent = currentPlan === plan.id;
+            const isFeatured = plan.id === "professional";
+            return (
+              <Card
+                key={plan.id}
+                className={`flex flex-col h-full w-full max-w-sm rounded-2xl border ${
+                  isFeatured
+                    ? "border-blue-500 shadow-2xl ring-2 ring-blue-500/30"
+                    : "border-slate-200 shadow-lg"
+                } bg-white`}
+              >
+                <CardHeader className="text-center space-y-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-slate-900">{plan.name}</CardTitle>
+                    {isCurrent && <Badge className="bg-green-500">Current</Badge>}
                   </div>
-                  {billingCycle === "annual" && (
-                    <p className="text-green-600 text-sm">Save 17% with annual billing</p>
+                  {isFeatured && (
+                    <div className="flex justify-center">
+                      <Badge className="bg-blue-600">Most Popular</Badge>
+                    </div>
                   )}
-                </div>
-
-                <ul className="space-y-3 mb-6">
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-2">
-                      <Check className="size-5 text-green-500 shrink-0 mt-0.5" />
-                      <span className="text-slate-700">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                {currentPlan === plan.id ? (
-                  <Button className="w-full bg-green-500 hover:bg-green-600" disabled>
-                    Current Plan
-                  </Button>
-                ) : (
-                  <Button
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                    onClick={() => handleUpgrade(plan.id)}
-                  >
-                    {plan.id === "enterprise" ? "Contact Sales" : "Upgrade"}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+                  <div className="flex items-baseline justify-center gap-2">
+                    <span className="text-4xl text-slate-900">${priceForPlan(plan)}</span>
+                    <span className="text-slate-600">/{billingCycle === "monthly" ? "month" : "year"}</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex flex-col flex-1">
+                  <ul className="space-y-3 mb-6 text-left">
+                    {plan.features.map((feature, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <Check className="size-5 text-green-500 shrink-0 mt-0.5" />
+                        <span className="text-slate-700">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-auto">
+                    {isCurrent ? (
+                      <Button className="w-full bg-green-500 hover:bg-green-600" disabled>
+                        Current Plan
+                      </Button>
+                    ) : (
+                      <Button
+                        className={`w-full ${isFeatured ? "bg-blue-600 hover:bg-blue-700" : "bg-slate-900 hover:bg-slate-800"}`}
+                        onClick={() => handleUpgrade(plan.id)}
+                      >
+                        {plan.id === "enterprise" ? "Contact Sales" : "Start Free Trial"}
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </div>
 
