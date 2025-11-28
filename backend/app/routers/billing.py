@@ -23,6 +23,13 @@ from app.models.billing import (
     PaymentMethodRead,
     PaymentMethodUpdate,
 )
+from pydantic import BaseModel
+
+
+class PaymentProvidersPayload(BaseModel):
+    paypal: Optional[dict] = None
+    applepay: Optional[dict] = None
+    gpay: Optional[dict] = None
 from app.models.notification import Notification
 
 router = APIRouter()
@@ -318,6 +325,50 @@ def _render_invoice_pdf(invoice: Invoice, workspace: Workspace, billed_user: Opt
     else:
         pdf_bytes = bytes(pdf_bytes)
     return pdf_bytes
+
+
+@router.get("/payment-providers")
+async def get_payment_providers(
+    workspace_id: int = Query(...),
+    current_user: User = Depends(get_current_active_user),
+    session: Session = Depends(get_session),
+):
+    """Return stored payment provider credentials (Apple Pay / Google Pay / PayPal)."""
+    _require_membership(session, workspace_id, current_user.id, owner_only=True)
+    workspace = _get_workspace(session, workspace_id)
+    providers = {}
+    if workspace.settings and isinstance(workspace.settings, dict):
+        providers = workspace.settings.get("payment_providers", {})
+    return providers
+
+
+@router.put("/payment-providers")
+async def upsert_payment_providers(
+    workspace_id: int = Query(...),
+    payload: PaymentProvidersPayload = Body(...),
+    current_user: User = Depends(get_current_active_user),
+    session: Session = Depends(get_session),
+):
+    """Persist payment provider credentials on the workspace.settings.payment_providers node."""
+    _require_membership(session, workspace_id, current_user.id, owner_only=True)
+    workspace = _get_workspace(session, workspace_id)
+    current_settings = workspace.settings if isinstance(workspace.settings, dict) else {}
+    providers = current_settings.get("payment_providers", {})
+
+    def scrub(data: Optional[dict]) -> dict:
+        return data or {}
+
+    providers["paypal"] = scrub(payload.paypal)
+    providers["applepay"] = scrub(payload.applepay)
+    providers["gpay"] = scrub(payload.gpay)
+
+    current_settings["payment_providers"] = providers
+    workspace.settings = current_settings
+    workspace.updated_at = datetime.utcnow()
+    session.add(workspace)
+    session.commit()
+    session.refresh(workspace)
+    return workspace.settings.get("payment_providers", {})
 
 
 @router.get("/subscription")

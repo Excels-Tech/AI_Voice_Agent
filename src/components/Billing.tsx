@@ -19,6 +19,7 @@ import {
   cancelSubscription,
   downloadInvoice,
   getPlans,
+  getPaymentProviders,
   getPaymentMethod,
   getSubscription,
   getUsageStats,
@@ -27,6 +28,7 @@ import {
   Plan,
   upgradeSubscription,
   upsertPaymentMethod,
+  upsertPaymentProviders,
   generateInvoice,
   type PaymentMethod,
 } from "../lib/api";
@@ -223,6 +225,7 @@ export function Billing() {
     merchantId: "",
     gatewayMerchantId: "",
   });
+  const [providerSaving, setProviderSaving] = useState(false);
   const toggleMethod = (id: string) =>
     setExpandedMethod((prev) => (prev === id ? "" : id));
 
@@ -352,6 +355,31 @@ export function Billing() {
       try {
         const profiles = await mockGetSavedProfiles();
         setSavedProfiles(profiles);
+        if (workspaceId) {
+          const providers = await getPaymentProviders(workspaceId);
+          if (providers?.paypal) {
+            setPaypalConfig((prev) => ({
+              ...prev,
+              clientId: providers.paypal.clientId || "",
+              clientSecret: providers.paypal.clientSecret || "",
+              mode: providers.paypal.mode || "sandbox",
+            }));
+          }
+          if (providers?.applepay) {
+            setApplePayConfig((prev) => ({
+              ...prev,
+              merchantId: providers.applepay.merchantId || "",
+              domain: providers.applepay.domain || "",
+            }));
+          }
+          if (providers?.gpay) {
+            setGpayConfig((prev) => ({
+              ...prev,
+              merchantId: providers.gpay.merchantId || "",
+              gatewayMerchantId: providers.gpay.gatewayMerchantId || "",
+            }));
+          }
+        }
       } catch {
         setSavedProfiles([]);
       }
@@ -507,6 +535,23 @@ export function Billing() {
       toast.error(err?.message || "Failed to update payment method");
     } finally {
       setIsSavingPayment(false);
+    }
+  };
+
+  const handleSaveProvider = async (type: "paypal" | "applepay" | "gpay") => {
+    if (!workspaceId) return;
+    setProviderSaving(true);
+    try {
+      const payload: any = {};
+      payload.paypal = type === "paypal" ? paypalConfig : undefined;
+      payload.applepay = type === "applepay" ? applePayConfig : undefined;
+      payload.gpay = type === "gpay" ? gpayConfig : undefined;
+      await upsertPaymentProviders(workspaceId, payload);
+      toast.success(`${type === "paypal" ? "PayPal" : type === "applepay" ? "Apple Pay" : "Google Pay"} saved`);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save provider credentials");
+    } finally {
+      setProviderSaving(false);
     }
   };
 
@@ -1445,41 +1490,98 @@ export function Billing() {
                         <Label className="text-slate-700">Saved billing profiles</Label>
                         <div className="flex flex-col gap-2">
                           {savedProfiles.map((profile) => (
-                            <button
-                              key={profile.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedProfileId(profile.id);
-                                setEmailForPayment(profile.email);
-                                setSelectedCountry(profile.country);
-                                setEditingProfileId(null);
-                              }}
-                              className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left ${
-                                selectedProfileId === profile.id
-                                  ? "border-blue-500 bg-blue-50"
-                                  : "border-slate-200 bg-white hover:border-blue-300"
-                              }`}
-                            >
-                              <div>
-                                <p className="text-slate-900 text-sm">{profile.label}</p>
-                                <p className="text-slate-600 text-xs">{profile.email} · {profile.country}</p>
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingProfileId(profile.id);
-                                  setEditingProfile({
-                                    label: profile.label,
-                                    email: profile.email,
-                                    country: profile.country,
-                                  });
+                            <div key={profile.id} className="rounded-lg border text-left">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedProfileId(profile.id);
+                                  setEmailForPayment(profile.email);
+                                  setSelectedCountry(profile.country);
+                                  setEditingProfileId(null);
                                 }}
+                                className={`w-full flex items-center justify-between px-3 py-2 ${
+                                  selectedProfileId === profile.id
+                                    ? "border-blue-500 bg-blue-50"
+                                    : "hover:bg-slate-50"
+                                }`}
                               >
-                                Edit
-                              </Button>
-                            </button>
+                                <div>
+                                  <p className="text-slate-900 text-sm">{profile.label}</p>
+                                  <p className="text-slate-600 text-xs">{profile.email} · {profile.country}</p>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingProfileId(profile.id);
+                                    setEditingProfile({
+                                      label: profile.label,
+                                      email: profile.email,
+                                      country: profile.country,
+                                    });
+                                  }}
+                                >
+                                  Edit
+                                </Button>
+                              </button>
+                              {editingProfileId === profile.id && (
+                                <div className="grid gap-2 border-t px-3 py-3 bg-white">
+                                  <Input
+                                    value={editingProfile.label}
+                                    onChange={(e) =>
+                                      setEditingProfile((prev) => ({ ...prev, label: e.target.value }))
+                                    }
+                                    placeholder="Label"
+                                    className="bg-white"
+                                  />
+                                  <Input
+                                    value={editingProfile.email}
+                                    onChange={(e) =>
+                                      setEditingProfile((prev) => ({ ...prev, email: e.target.value }))
+                                    }
+                                    placeholder="Email"
+                                    className="bg-white"
+                                  />
+                                  <select
+                                    value={editingProfile.country}
+                                    onChange={(e) =>
+                                      setEditingProfile((prev) => ({ ...prev, country: e.target.value }))
+                                    }
+                                    className="border rounded-md px-2 py-1 text-sm text-slate-800 bg-white"
+                                  >
+                                    <option value="">Select country</option>
+                                    {COUNTRIES.map((c) => (
+                                      <option key={c} value={c}>
+                                        {c}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <div className="flex gap-2 justify-end">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => setEditingProfileId(null)}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        setSavedProfiles((prev) =>
+                                          prev.map((p) =>
+                                            p.id === editingProfileId ? { ...p, ...editingProfile } : p
+                                          )
+                                        );
+                                        setEditingProfileId(null);
+                                      }}
+                                    >
+                                      Save
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           ))}
                           <div className="flex items-center gap-2">
                             <Input
@@ -1503,63 +1605,6 @@ export function Billing() {
                               Add profile
                             </Button>
                           </div>
-                          {editingProfileId && (
-                            <div className="grid gap-2 border rounded-lg p-3 bg-white">
-                              <p className="text-slate-900 text-sm font-medium">Edit profile</p>
-                              <Input
-                                value={editingProfile.label}
-                                onChange={(e) =>
-                                  setEditingProfile((prev) => ({ ...prev, label: e.target.value }))
-                                }
-                                placeholder="Label"
-                                className="bg-white"
-                              />
-                              <Input
-                                value={editingProfile.email}
-                                onChange={(e) =>
-                                  setEditingProfile((prev) => ({ ...prev, email: e.target.value }))
-                                }
-                                placeholder="Email"
-                                className="bg-white"
-                              />
-                              <select
-                                value={editingProfile.country}
-                                onChange={(e) =>
-                                  setEditingProfile((prev) => ({ ...prev, country: e.target.value }))
-                                }
-                                className="border rounded-md px-2 py-1 text-sm text-slate-800 bg-white"
-                              >
-                                <option value="">Select country</option>
-                                {COUNTRIES.map((c) => (
-                                  <option key={c} value={c}>
-                                    {c}
-                                  </option>
-                                ))}
-                              </select>
-                              <div className="flex gap-2 justify-end">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setEditingProfileId(null)}
-                                >
-                                  Cancel
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    setSavedProfiles((prev) =>
-                                      prev.map((p) =>
-                                        p.id === editingProfileId ? { ...p, ...editingProfile } : p
-                                      )
-                                    );
-                                    setEditingProfileId(null);
-                                  }}
-                                >
-                                  Save
-                                </Button>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
                     )}
@@ -1728,7 +1773,7 @@ export function Billing() {
                           {open && methodId === "paypal" && (
                             <div className="px-4 pb-4 space-y-3 text-sm text-slate-700">
                               <p>Pay securely with PayPal.</p>
-                          {!showPaypalCreds ? (
+                              {!showPaypalCreds ? (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -1760,17 +1805,73 @@ export function Billing() {
                                     <option value="sandbox">Sandbox</option>
                                     <option value="live">Live</option>
                                   </select>
-                                  <Button size="sm" variant="outline" className="w-full bg-blue-50 text-blue-800 border-blue-200">
-                                    Save credentials (wire to backend)
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full bg-blue-50 text-blue-800 border-blue-200"
+                                    onClick={() => handleSaveProvider("paypal")}
+                                    disabled={providerSaving}
+                                  >
+                                    {providerSaving ? "Saving..." : "Save credentials"}
                                   </Button>
                                 </div>
                               )}
                             </div>
                           )}
                           {open && (methodId === "applepay" || methodId === "gpay") && (
-                            <div className="px-4 pb-4 space-y-2 text-sm text-slate-700">
-                              <p>Coming soon. This UI is ready; hook into your payment provider (Stripe Payment Request) to enable.</p>
-                              <Button size="sm" disabled className="w-full bg-slate-100 text-slate-500">Coming soon</Button>
+                            <div className="px-4 pb-4 space-y-3 text-sm text-slate-700">
+                              {methodId === "applepay" && (
+                                <>
+                                  <p>Configure Apple Pay (store credentials securely in your backend).</p>
+                                  <Input
+                                    value={applePayConfig.merchantId}
+                                    onChange={(e) => setApplePayConfig((p) => ({ ...p, merchantId: e.target.value }))}
+                                    placeholder="Apple Pay Merchant ID"
+                                    className="bg-white text-slate-900"
+                                  />
+                                  <Input
+                                    value={applePayConfig.domain}
+                                    onChange={(e) => setApplePayConfig((p) => ({ ...p, domain: e.target.value }))}
+                                    placeholder="Merchant domain (e.g., pay.example.com)"
+                                    className="bg-white text-slate-900"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full bg-blue-50 text-blue-800 border-blue-200"
+                                    onClick={() => handleSaveProvider("applepay")}
+                                    disabled={providerSaving}
+                                  >
+                                    {providerSaving ? "Saving..." : "Save to backend"}
+                                  </Button>
+                                </>
+                              )}
+                              {methodId === "gpay" && (
+                                <>
+                                  <p>Configure Google Pay (store credentials securely in your backend).</p>
+                                  <Input
+                                    value={gpayConfig.merchantId}
+                                    onChange={(e) => setGpayConfig((p) => ({ ...p, merchantId: e.target.value }))}
+                                    placeholder="Google Pay Merchant ID"
+                                    className="bg-white text-slate-900"
+                                  />
+                                  <Input
+                                    value={gpayConfig.gatewayMerchantId}
+                                    onChange={(e) => setGpayConfig((p) => ({ ...p, gatewayMerchantId: e.target.value }))}
+                                    placeholder="Gateway merchant ID (Stripe/Adyen)"
+                                    className="bg-white text-slate-900"
+                                  />
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full bg-blue-50 text-blue-800 border-blue-200"
+                                    onClick={() => handleSaveProvider("gpay")}
+                                    disabled={providerSaving}
+                                  >
+                                    {providerSaving ? "Saving..." : "Save to backend"}
+                                  </Button>
+                                </>
+                              )}
                             </div>
                           )}
                         </div>

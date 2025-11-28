@@ -483,3 +483,19 @@ export async function upsertPaymentMethod(workspaceId: number, payload: PaymentM
     body: JSON.stringify(payload),
   });
 }
+
+// Payment provider credentials
+export async function getPaymentProviders(workspaceId: number) {
+  return apiFetch<Record<string, any>>(`/api/billing/payment-providers?workspace_id=${workspaceId}`);
+}
+
+export async function upsertPaymentProviders(workspaceId: number, payload: {
+  paypal?: Record<string, any>;
+  applepay?: Record<string, any>;
+  gpay?: Record<string, any>;
+}) {
+  return apiFetch<Record<string, any>>(`/api/billing/payment-providers?workspace_id=${workspaceId}`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
