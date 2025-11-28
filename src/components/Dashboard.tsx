@@ -56,6 +56,7 @@ import {
   getPlans,
   getDashboardOverview,
   type DashboardOverview,
+  type NotificationItem,
 } from "../lib/api";
 import type { AppUser } from "../types/user";
 
@@ -95,6 +96,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
   const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(null);
   const [dashboardLoading, setDashboardLoading] = useState(false);
   const [dashboardError, setDashboardError] = useState<string | null>(null);
+  const [notificationPreview, setNotificationPreview] = useState<NotificationItem | null>(null);
 
   useEffect(() => {
     setCurrentUser(user);
@@ -138,10 +140,27 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
         const activeWorkspace = workspaces?.find((w: any) => w.is_active) ?? workspaces?.[0];
         const wsId = activeWorkspace?.id ?? activeWorkspace?.workspace_id;
         if (wsId) setWorkspaceId(wsId);
+        if (wsId) {
+          try {
+            const unread = await getUnreadNotificationsCount(wsId);
+            setUnreadCount(unread?.unread_count ?? 0);
+          } catch (err) {
+            console.warn("Failed to fetch unread count", err);
+          }
+        }
       } catch (err) {
         console.error("Failed to load workspaces for notifications", err);
       }
     })();
+  }, []);
+
+  // Smooth scrolling to reduce jitter when navigating sections
+  useEffect(() => {
+    const prev = document.documentElement.style.scrollBehavior;
+    document.documentElement.style.scrollBehavior = "smooth";
+    return () => {
+      document.documentElement.style.scrollBehavior = prev;
+    };
   }, []);
 
   const loadNotifications = async (wsId: number) => {
@@ -175,15 +194,34 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     try {
       await markAllNotificationsRead(workspaceId);
       await loadNotifications(workspaceId);
+      setUnreadCount(0);
     } catch (err) {
       console.error("Failed to mark all notifications read", err);
     }
   };
 
-  const handleNotificationClick = async (id: number) => {
+  const resolveNotificationTarget = (notification: NotificationItem) => {
+    if (notification.type === "billing" || notification.message?.toLowerCase().includes("invoice")) {
+      return "billing";
+    }
+    if (notification.type === "call") return "calls";
+    if (notification.type === "analytics") return "analytics";
+    return null;
+  };
+
+  const handleNotificationClick = async (notification: NotificationItem) => {
     try {
-      await markNotificationRead(id);
+      await markNotificationRead(notification.id);
       if (workspaceId) await loadNotifications(workspaceId);
+      setUnreadCount((prev) => Math.max(0, prev - 1));
+      setNotificationPreview(notification);
+      const target = resolveNotificationTarget(notification);
+      if (target) {
+        const shouldNavigate = window.confirm(
+          `Open ${target} to view details for "${notification.title}"?`
+        );
+        if (shouldNavigate) setActivePage(target as any);
+      }
     } catch (err) {
       console.error("Failed to mark notification read", err);
     }
@@ -433,6 +471,21 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
+        {notificationPreview && (
+          <Card className="mb-4 bg-blue-50 border-blue-200">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <p className="text-slate-900 font-semibold">{notificationPreview.title}</p>
+                  <p className="text-slate-700 text-sm">{notificationPreview.message}</p>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => setNotificationPreview(null)}>
+                  Dismiss
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         {activePage === "dashboard" && (
           <div className="space-y-6">
             {/* Welcome Section */}

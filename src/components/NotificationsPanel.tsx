@@ -9,7 +9,7 @@ interface NotificationsPanelProps {
   loading?: boolean;
   onClose: () => void;
   onMarkAllRead?: () => void;
-  onMarkOne?: (id: number) => void;
+  onMarkOne?: (notification: any) => void;
 }
 
 export function NotificationsPanel({ notifications, loading, onClose, onMarkAllRead, onMarkOne }: NotificationsPanelProps) {
@@ -42,7 +42,7 @@ export function NotificationsPanel({ notifications, loading, onClose, onMarkAllR
                   className={`p-4 border-b hover:bg-slate-50 transition-colors cursor-pointer ${
                     notification.read === false ? "bg-blue-50" : ""
                   }`}
-                  onClick={() => onMarkOne?.(notification.id)}
+                  onClick={() => onMarkOne?.(notification)}
                 >
                   <div className="flex items-start gap-3">
                     <div
