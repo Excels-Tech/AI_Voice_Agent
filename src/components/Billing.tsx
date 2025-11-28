@@ -194,6 +194,20 @@ export function Billing() {
   const [savedProfiles, setSavedProfiles] = useState<{ id: string; label: string; email: string; country: string }[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [profileNote, setProfileNote] = useState<string>("");
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
+  const [editingProfile, setEditingProfile] = useState<{ label: string; email: string; country: string }>({
+    label: "",
+    email: "",
+    country: "",
+  });
+  const [applePayConfig, setApplePayConfig] = useState<{ merchantId: string; domain: string }>({
+    merchantId: "",
+    domain: "",
+  });
+  const [gpayConfig, setGpayConfig] = useState<{ merchantId: string; gatewayMerchantId: string }>({
+    merchantId: "",
+    gatewayMerchantId: "",
+  });
   const toggleMethod = (id: string) =>
     setExpandedMethod((prev) => (prev === id ? "" : id));
 
@@ -536,7 +550,7 @@ export function Billing() {
             <div>
               <p className="text-sm text-slate-500">Billing / Payment Methods</p>
               <h1 className="text-slate-900 text-xl font-semibold">Update payment method</h1>
-              <p className="text-slate-600 text-sm">Keep your subscription active by adding a payment method.</p>
+              <p className="text-slate-700 text-sm">Keep your subscription active by adding a payment method.</p>
             </div>
             <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
               Back to Billing
@@ -671,12 +685,26 @@ export function Billing() {
               {/* Country search */}
               <div className="grid gap-2">
                 <Label className="text-slate-700">Country</Label>
-                <Input
-                  placeholder="Search country"
-                  value={countryQuery}
-                  onChange={(e) => setCountryQuery(e.target.value)}
-                  className="bg-white"
-                />
+                <div className="flex gap-3 flex-wrap">
+                  <select
+                    value={selectedCountry}
+                    onChange={(e) => setSelectedCountry(e.target.value)}
+                    className="border rounded-md px-3 py-2 text-sm text-slate-800 bg-white"
+                  >
+                    <option value="">Select country</option>
+                    {COUNTRIES.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                  <Input
+                    placeholder="Search country"
+                    value={countryQuery}
+                    onChange={(e) => setCountryQuery(e.target.value)}
+                    className="bg-white flex-1 min-w-[180px]"
+                  />
+                </div>
                 <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto">
                   {COUNTRIES.filter((c) =>
                     c.toLowerCase().includes(countryQuery.toLowerCase())
@@ -686,7 +714,7 @@ export function Billing() {
                       type="button"
                       onClick={() => setSelectedCountry(c)}
                       className={`px-3 py-1 rounded-full border text-sm ${
-                        selectedCountry === c ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white"
+                        selectedCountry === c ? "border-blue-500 bg-blue-50 text-slate-900" : "border-slate-200 bg-white text-slate-800"
                       }`}
                     >
                       {c}
@@ -785,42 +813,42 @@ export function Billing() {
                           <div className="grid gap-2">
                             <Label className="text-slate-700">Card number</Label>
                             <Input
-                              value={paymentForm.cardNumber}
-                              onChange={(e) => setPaymentForm({ ...paymentForm, cardNumber: e.target.value })}
-                              placeholder="1234 1234 1234 1234"
-                              className="bg-white"
-                            />
-                          </div>
+                      value={paymentForm.cardNumber}
+                      onChange={(e) => setPaymentForm({ ...paymentForm, cardNumber: e.target.value })}
+                      placeholder="1234 1234 1234 1234"
+                      className="bg-white text-slate-900"
+                    />
+                  </div>
 
-                          <div className="grid grid-cols-3 gap-3">
-                            <div className="grid gap-2">
-                              <Label className="text-slate-700">Expiry month</Label>
-                              <Input
-                                value={paymentForm.expMonth}
-                                onChange={(e) => setPaymentForm({ ...paymentForm, expMonth: e.target.value })}
-                                placeholder="MM"
-                                className="bg-white"
-                              />
-                            </div>
-                            <div className="grid gap-2">
-                              <Label className="text-slate-700">Expiry year</Label>
-                              <Input
-                                value={paymentForm.expYear}
-                                onChange={(e) => setPaymentForm({ ...paymentForm, expYear: e.target.value })}
-                                placeholder="YYYY"
-                                className="bg-white"
-                              />
-                            </div>
-                            <div className="grid gap-2">
-                              <Label className="text-slate-700">Security code</Label>
-                              <Input
-                                value={paymentForm.cvc}
-                                onChange={(e) => setPaymentForm({ ...paymentForm, cvc: e.target.value })}
-                                placeholder="CVC"
-                                className="bg-white"
-                              />
-                            </div>
-                          </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="grid gap-2">
+                      <Label className="text-slate-700">Expiry month</Label>
+                      <Input
+                        value={paymentForm.expMonth}
+                        onChange={(e) => setPaymentForm({ ...paymentForm, expMonth: e.target.value })}
+                        placeholder="MM"
+                        className="bg-white text-slate-900"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="text-slate-700">Expiry year</Label>
+                      <Input
+                        value={paymentForm.expYear}
+                        onChange={(e) => setPaymentForm({ ...paymentForm, expYear: e.target.value })}
+                        placeholder="YYYY"
+                        className="bg-white text-slate-900"
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label className="text-slate-700">Security code</Label>
+                      <Input
+                        value={paymentForm.cvc}
+                        onChange={(e) => setPaymentForm({ ...paymentForm, cvc: e.target.value })}
+                        placeholder="CVC"
+                        className="bg-white text-slate-900"
+                      />
+                    </div>
+                  </div>
                         </div>
                       )}
                       {open && methodId === "bank" && (
@@ -837,10 +865,48 @@ export function Billing() {
                           <Button variant="outline" size="sm" className="w-full">Connect PayPal</Button>
                         </div>
                       )}
-                      {open && (methodId === "applepay" || methodId === "gpay") && (
-                        <div className="px-4 pb-4 space-y-2 text-sm text-slate-700">
-                          <p>Coming soon. This UI is ready; hook into your payment provider (Stripe Payment Request) to enable.</p>
-                          <Button size="sm" disabled className="w-full bg-slate-100 text-slate-500">Coming soon</Button>
+                          {open && (methodId === "applepay" || methodId === "gpay") && (
+                        <div className="px-4 pb-4 space-y-3 text-sm text-slate-700">
+                          {methodId === "applepay" && (
+                            <>
+                              <p>Configure Apple Pay (store credentials securely in your backend).</p>
+                              <Input
+                                value={applePayConfig.merchantId}
+                                onChange={(e) => setApplePayConfig((p) => ({ ...p, merchantId: e.target.value }))}
+                                placeholder="Apple Pay Merchant ID"
+                                className="bg-white"
+                              />
+                              <Input
+                                value={applePayConfig.domain}
+                                onChange={(e) => setApplePayConfig((p) => ({ ...p, domain: e.target.value }))}
+                                placeholder="Merchant domain (e.g., pay.example.com)"
+                                className="bg-white"
+                              />
+                              <Button size="sm" variant="outline" disabled className="w-full">
+                                Save to backend (wire to provider)
+                              </Button>
+                            </>
+                          )}
+                          {methodId === "gpay" && (
+                            <>
+                              <p>Configure Google Pay (store credentials securely in your backend).</p>
+                              <Input
+                                value={gpayConfig.merchantId}
+                                onChange={(e) => setGpayConfig((p) => ({ ...p, merchantId: e.target.value }))}
+                                placeholder="Google Pay Merchant ID"
+                                className="bg-white"
+                              />
+                              <Input
+                                value={gpayConfig.gatewayMerchantId}
+                                onChange={(e) => setGpayConfig((p) => ({ ...p, gatewayMerchantId: e.target.value }))}
+                                placeholder="Gateway merchant ID (Stripe/Adyen)"
+                                className="bg-white"
+                              />
+                              <Button size="sm" variant="outline" disabled className="w-full">
+                                Save to backend (wire to provider)
+                              </Button>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1385,6 +1451,7 @@ export function Billing() {
                                 setSelectedProfileId(profile.id);
                                 setEmailForPayment(profile.email);
                                 setSelectedCountry(profile.country);
+                                setEditingProfileId(null);
                               }}
                               className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left ${
                                 selectedProfileId === profile.id
@@ -1396,7 +1463,19 @@ export function Billing() {
                                 <p className="text-slate-900 text-sm">{profile.label}</p>
                                 <p className="text-slate-600 text-xs">{profile.email} · {profile.country}</p>
                               </div>
-                              <Button variant="ghost" size="sm">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingProfileId(profile.id);
+                                  setEditingProfile({
+                                    label: profile.label,
+                                    email: profile.email,
+                                    country: profile.country,
+                                  });
+                                }}
+                              >
                                 Edit
                               </Button>
                             </button>
@@ -1423,6 +1502,63 @@ export function Billing() {
                               Add profile
                             </Button>
                           </div>
+                          {editingProfileId && (
+                            <div className="grid gap-2 border rounded-lg p-3 bg-white">
+                              <p className="text-slate-900 text-sm font-medium">Edit profile</p>
+                              <Input
+                                value={editingProfile.label}
+                                onChange={(e) =>
+                                  setEditingProfile((prev) => ({ ...prev, label: e.target.value }))
+                                }
+                                placeholder="Label"
+                                className="bg-white"
+                              />
+                              <Input
+                                value={editingProfile.email}
+                                onChange={(e) =>
+                                  setEditingProfile((prev) => ({ ...prev, email: e.target.value }))
+                                }
+                                placeholder="Email"
+                                className="bg-white"
+                              />
+                              <select
+                                value={editingProfile.country}
+                                onChange={(e) =>
+                                  setEditingProfile((prev) => ({ ...prev, country: e.target.value }))
+                                }
+                                className="border rounded-md px-2 py-1 text-sm text-slate-800 bg-white"
+                              >
+                                <option value="">Select country</option>
+                                {COUNTRIES.map((c) => (
+                                  <option key={c} value={c}>
+                                    {c}
+                                  </option>
+                                ))}
+                              </select>
+                              <div className="flex gap-2 justify-end">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setEditingProfileId(null)}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    setSavedProfiles((prev) =>
+                                      prev.map((p) =>
+                                        p.id === editingProfileId ? { ...p, ...editingProfile } : p
+                                      )
+                                    );
+                                    setEditingProfileId(null);
+                                  }}
+                                >
+                                  Save
+                                </Button>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
