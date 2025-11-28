@@ -211,26 +211,44 @@ export function Billing() {
     email: "",
     country: "",
   });
-  const [paypalConfig, setPaypalConfig] = useState<{ clientId: string; clientSecret: string; mode: "sandbox" | "live" }>({
+  const [paypalConfig, setPaypalConfig] = useState<{
+    clientId: string;
+    clientSecret: string;
+    mode: "sandbox" | "live";
+  }>({
     clientId: "",
     clientSecret: "",
     mode: "sandbox",
   });
-  const [showPaypalCreds, setShowPaypalCreds] = useState(false);
-  const [applePayConfig, setApplePayConfig] = useState<{ merchantId: string; domain: string }>({
+  const [applePayConfig, setApplePayConfig] = useState<{
+    merchantId: string;
+    merchantName: string;
+    domain: string;
+    merchantCertificate: string;
+    merchantPrivateKey: string;
+    environment: "sandbox" | "live";
+  }>({
     merchantId: "",
+    merchantName: "",
     domain: "",
+    merchantCertificate: "",
+    merchantPrivateKey: "",
+    environment: "sandbox",
   });
-  const [gpayConfig, setGpayConfig] = useState<{ merchantId: string; gatewayMerchantId: string }>({
+  const [gpayConfig, setGpayConfig] = useState<{
+    merchantId: string;
+    merchantName: string;
+    gatewayMerchantId: string;
+    environment: "TEST" | "PRODUCTION";
+  }>({
     merchantId: "",
+    merchantName: "",
     gatewayMerchantId: "",
+    environment: "TEST",
   });
   const [providerSaving, setProviderSaving] = useState(false);
   const toggleMethod = (id: string) =>
-    setExpandedMethod((prev) => {
-      if (id === "paypal") setShowPaypalCreds(true);
-      return prev === id ? "" : id;
-    });
+    setExpandedMethod((prev) => (prev === id ? "" : id));
 
   const hydrateFromCache = () => {
     try {
@@ -372,7 +390,11 @@ export function Billing() {
             setApplePayConfig((prev) => ({
               ...prev,
               merchantId: providers.applepay.merchantId || "",
+              merchantName: providers.applepay.merchantName || "",
               domain: providers.applepay.domain || "",
+              merchantCertificate: providers.applepay.merchantCertificate || "",
+              merchantPrivateKey: providers.applepay.merchantPrivateKey || "",
+              environment: providers.applepay.environment || "sandbox",
             }));
           }
           if (providers?.gpay) {
@@ -380,6 +402,8 @@ export function Billing() {
               ...prev,
               merchantId: providers.gpay.merchantId || "",
               gatewayMerchantId: providers.gpay.gatewayMerchantId || "",
+              merchantName: providers.gpay.merchantName || "",
+              environment: providers.gpay.environment || "TEST",
             }));
           }
         }
@@ -545,11 +569,11 @@ export function Billing() {
     if (!workspaceId) return;
     setProviderSaving(true);
     try {
-      const payload: any = {};
-      payload.paypal = type === "paypal" ? paypalConfig : undefined;
-      payload.applepay = type === "applepay" ? applePayConfig : undefined;
-      payload.gpay = type === "gpay" ? gpayConfig : undefined;
-      await upsertPaymentProviders(workspaceId, payload);
+      await upsertPaymentProviders(workspaceId, {
+        paypal: paypalConfig,
+        applepay: applePayConfig,
+        gpay: gpayConfig,
+      });
       toast.success(`${type === "paypal" ? "PayPal" : type === "applepay" ? "Apple Pay" : "Google Pay"} saved`);
     } catch (err: any) {
       toast.error(err?.message || "Failed to save provider credentials");
@@ -1685,7 +1709,7 @@ export function Billing() {
               </div>
               <select
                 value={expandedMethod}
-                onChange={(e) => setExpandedMethod(e.target.value)}
+                onChange={(e) => toggleMethod(e.target.value)}
                 className="border rounded-md px-2 py-1 text-sm text-slate-700 bg-white"
               >
                 <option value="card">Credit / Debit Card</option>
@@ -1706,7 +1730,7 @@ export function Billing() {
                           <button
                             type="button"
                             className="w-full flex items-center justify-between px-4 py-3"
-                            onClick={() => setExpandedMethod(methodId)}
+                            onClick={() => toggleMethod(methodId)}
                           >
                             <div className="flex items-center gap-2">
                               <div className="size-9 rounded-lg bg-slate-100 flex items-center justify-center">
@@ -1817,107 +1841,148 @@ export function Billing() {
                                 <li>Copy Client ID and Secret for the selected environment (Sandbox/Live).</li>
                                 <li>Ensure your webhook/return URLs match your deployment domain.</li>
                               </ul>
-                              {!showPaypalCreds ? (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full bg-blue-50 text-blue-800 border-blue-200"
-                                  onClick={() => setShowPaypalCreds(true)}
+                              <div className="grid gap-3">
+                                <Input
+                                  placeholder="PayPal Client ID"
+                                  value={paypalConfig.clientId}
+                                  onChange={(e) => setPaypalConfig((p) => ({ ...p, clientId: e.target.value }))}
+                                  className="bg-white text-slate-900"
+                                />
+                                <Input
+                                  placeholder="PayPal Client Secret"
+                                  type="password"
+                                  value={paypalConfig.clientSecret}
+                                  onChange={(e) => setPaypalConfig((p) => ({ ...p, clientSecret: e.target.value }))}
+                                  className="bg-white text-slate-900"
+                                />
+                                <select
+                                  value={paypalConfig.mode}
+                                  onChange={(e) => setPaypalConfig((p) => ({ ...p, mode: e.target.value as "sandbox" | "live" }))}
+                                  className="border rounded-md px-2 py-1 text-sm text-slate-900 bg-white"
                                 >
-                                  Connect PayPal
+                                  <option value="sandbox">Sandbox</option>
+                                  <option value="live">Live</option>
+                                </select>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full bg-blue-50 text-blue-800 border-blue-200"
+                                  onClick={() => handleSaveProvider("paypal")}
+                                  disabled={providerSaving}
+                                >
+                                  {providerSaving ? "Saving..." : "Save credentials"}
                                 </Button>
-                              ) : (
-                                <div className="grid gap-3">
-                                  <Input
-                                    placeholder="PayPal Client ID"
-                                    value={paypalConfig.clientId}
-                                    onChange={(e) => setPaypalConfig((p) => ({ ...p, clientId: e.target.value }))}
-                                    className="bg-white text-slate-900"
-                                  />
-                                  <Input
-                                    placeholder="PayPal Client Secret"
-                                    type="password"
-                                    value={paypalConfig.clientSecret}
-                                    onChange={(e) => setPaypalConfig((p) => ({ ...p, clientSecret: e.target.value }))}
-                                    className="bg-white text-slate-900"
-                                  />
-                                  <select
-                                    value={paypalConfig.mode}
-                                    onChange={(e) => setPaypalConfig((p) => ({ ...p, mode: e.target.value as "sandbox" | "live" }))}
-                                    className="border rounded-md px-2 py-1 text-sm text-slate-900 bg-white"
-                                  >
-                                    <option value="sandbox">Sandbox</option>
-                                    <option value="live">Live</option>
-                                  </select>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="w-full bg-blue-50 text-blue-800 border-blue-200"
-                                    onClick={() => handleSaveProvider("paypal")}
-                                    disabled={providerSaving}
-                                  >
-                                    {providerSaving ? "Saving..." : "Save credentials"}
-                                  </Button>
-                                </div>
-                              )}
+                              </div>
                             </div>
                           )}
                           {open && (methodId === "applepay" || methodId === "gpay") && (
                             <div className="px-4 pb-4 space-y-3 text-sm text-slate-700">
-                              {methodId === "applepay" && (
-                                <>
-                                  <p>Configure Apple Pay (store credentials securely in your backend).</p>
-                                  <Input
-                                    value={applePayConfig.merchantId}
-                                    onChange={(e) => setApplePayConfig((p) => ({ ...p, merchantId: e.target.value }))}
-                                    placeholder="Apple Pay Merchant ID"
-                                    className="bg-white text-slate-900"
-                                  />
-                                  <Input
-                                    value={applePayConfig.domain}
-                                    onChange={(e) => setApplePayConfig((p) => ({ ...p, domain: e.target.value }))}
-                                    placeholder="Merchant domain (e.g., pay.example.com)"
-                                    className="bg-white text-slate-900"
-                                  />
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="w-full bg-blue-50 text-blue-800 border-blue-200"
-                                    onClick={() => handleSaveProvider("applepay")}
-                                    disabled={providerSaving}
-                                  >
-                                    {providerSaving ? "Saving..." : "Save to backend"}
-                                  </Button>
-                                </>
-                              )}
-                              {methodId === "gpay" && (
-                                <>
-                                  <p>Configure Google Pay (store credentials securely in your backend).</p>
-                                  <Input
-                                    value={gpayConfig.merchantId}
-                                    onChange={(e) => setGpayConfig((p) => ({ ...p, merchantId: e.target.value }))}
-                                    placeholder="Google Pay Merchant ID"
-                                    className="bg-white text-slate-900"
-                                  />
-                                  <Input
-                                    value={gpayConfig.gatewayMerchantId}
-                                    onChange={(e) => setGpayConfig((p) => ({ ...p, gatewayMerchantId: e.target.value }))}
-                                    placeholder="Gateway merchant ID (Stripe/Adyen)"
-                                    className="bg-white text-slate-900"
-                                  />
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="w-full bg-blue-50 text-blue-800 border-blue-200"
-                                    onClick={() => handleSaveProvider("gpay")}
-                                    disabled={providerSaving}
-                                  >
-                                    {providerSaving ? "Saving..." : "Save to backend"}
-                                  </Button>
-                                </>
-                              )}
-                            </div>
+                          {methodId === "applepay" && (
+                            <>
+                              <p>Configure Apple Pay (store credentials securely in your backend).</p>
+                              <Input
+                                value={applePayConfig.merchantId}
+                                onChange={(e) => setApplePayConfig((p) => ({ ...p, merchantId: e.target.value }))}
+                                placeholder="Apple Pay Merchant ID"
+                                className="bg-white text-slate-900"
+                              />
+                              <Input
+                                value={applePayConfig.merchantName}
+                                onChange={(e) => setApplePayConfig((p) => ({ ...p, merchantName: e.target.value }))}
+                                placeholder="Merchant display name (shown to buyers)"
+                                className="bg-white text-slate-900"
+                              />
+                              <Input
+                                value={applePayConfig.domain}
+                                onChange={(e) => setApplePayConfig((p) => ({ ...p, domain: e.target.value }))}
+                                placeholder="Merchant domain (e.g., pay.example.com)"
+                                className="bg-white text-slate-900"
+                              />
+                              <Input
+                                value={applePayConfig.merchantCertificate}
+                                onChange={(e) =>
+                                  setApplePayConfig((p) => ({ ...p, merchantCertificate: e.target.value }))
+                                }
+                                placeholder="Merchant certificate (PEM) or vault ID"
+                                className="bg-white text-slate-900"
+                              />
+                              <Input
+                                type="password"
+                                value={applePayConfig.merchantPrivateKey}
+                                onChange={(e) =>
+                                  setApplePayConfig((p) => ({ ...p, merchantPrivateKey: e.target.value }))
+                                }
+                                placeholder="Merchant private key (keep secure)"
+                                className="bg-white text-slate-900"
+                              />
+                              <select
+                                value={applePayConfig.environment}
+                                onChange={(e) =>
+                                  setApplePayConfig((p) => ({ ...p, environment: e.target.value as "sandbox" | "live" }))
+                                }
+                                className="border rounded-md px-2 py-1 text-sm text-slate-900 bg-white"
+                              >
+                                <option value="sandbox">Sandbox</option>
+                                <option value="live">Live</option>
+                              </select>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full bg-blue-50 text-blue-800 border-blue-200"
+                                onClick={() => handleSaveProvider("applepay")}
+                                disabled={providerSaving}
+                              >
+                                {providerSaving ? "Saving..." : "Save to backend"}
+                              </Button>
+                            </>
                           )}
+                          {methodId === "gpay" && (
+                            <>
+                              <p>Configure Google Pay (store credentials securely in your backend).</p>
+                              <Input
+                                value={gpayConfig.merchantId}
+                                onChange={(e) => setGpayConfig((p) => ({ ...p, merchantId: e.target.value }))}
+                                placeholder="Google Pay Merchant ID"
+                                className="bg-white text-slate-900"
+                              />
+                              <Input
+                                value={gpayConfig.merchantName}
+                                onChange={(e) => setGpayConfig((p) => ({ ...p, merchantName: e.target.value }))}
+                                placeholder="Merchant display name"
+                                className="bg-white text-slate-900"
+                              />
+                              <Input
+                                value={gpayConfig.gatewayMerchantId}
+                                onChange={(e) => setGpayConfig((p) => ({ ...p, gatewayMerchantId: e.target.value }))}
+                                placeholder="Gateway merchant ID (Stripe/Adyen)"
+                                className="bg-white text-slate-900"
+                              />
+                              <select
+                                value={gpayConfig.environment}
+                                onChange={(e) =>
+                                  setGpayConfig((p) => ({
+                                    ...p,
+                                    environment: e.target.value as "TEST" | "PRODUCTION",
+                                  }))
+                                }
+                                className="border rounded-md px-2 py-1 text-sm text-slate-900 bg-white"
+                              >
+                                <option value="TEST">Test</option>
+                                <option value="PRODUCTION">Production</option>
+                              </select>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full bg-blue-50 text-blue-800 border-blue-200"
+                                onClick={() => handleSaveProvider("gpay")}
+                                disabled={providerSaving}
+                              >
+                                {providerSaving ? "Saving..." : "Save to backend"}
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      )}
                         </div>
                       );
                     })}
