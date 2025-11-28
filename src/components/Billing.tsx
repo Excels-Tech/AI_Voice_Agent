@@ -1773,6 +1773,11 @@ export function Billing() {
                           {open && methodId === "paypal" && (
                             <div className="px-4 pb-4 space-y-3 text-sm text-slate-700">
                               <p>Pay securely with PayPal.</p>
+                              <ul className="list-disc list-inside text-slate-600 text-xs space-y-1">
+                                <li>Get a REST app at PayPal Developer → Dashboard → My Apps & Credentials.</li>
+                                <li>Copy Client ID and Secret for the selected environment (Sandbox/Live).</li>
+                                <li>Ensure your webhook/return URLs match your deployment domain.</li>
+                              </ul>
                               {!showPaypalCreds ? (
                                 <Button
                                   variant="outline"
