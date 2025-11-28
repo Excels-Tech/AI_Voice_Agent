@@ -863,8 +863,8 @@ export function Billing() {
 
       {/* Payment Method Modal (custom center) */}
       {showPaymentDialog && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-[560px] rounded-2xl border border-slate-200 bg-white shadow-2xl max-h-[82vh] overflow-hidden">
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/50 px-4 modal-fade">
+          <div className="w-full max-w-[560px] rounded-2xl border border-slate-200 bg-white shadow-2xl max-h-[82vh] overflow-hidden modal-slide">
             <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-5 py-4 text-white flex items-center justify-between">
               <div>
                 <p className="text-lg font-semibold">Add a payment method</p>
