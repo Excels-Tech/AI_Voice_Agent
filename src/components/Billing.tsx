@@ -137,6 +137,18 @@ export function Billing() {
   } | null>(null);
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
   const invoicesScrollable = invoices.length >= 5;
+  // Mock helpers (replace with real APIs)
+  const mockCheckEmailExists = async (email: string) => {
+    await new Promise((r) => setTimeout(r, 400));
+    return email.toLowerCase().includes("user");
+  };
+  const mockGetSavedProfiles = async () => {
+    await new Promise((r) => setTimeout(r, 300));
+    return [
+      { id: "p1", label: "Acme Corp", email: "billing@acme.com", country: "United States" },
+      { id: "p2", label: "Personal", email: "me@example.com", country: "Canada" },
+    ];
+  };
   const CARD_TEMPLATES = [
     { brand: "Visa", mask: "4242 4242 4242 4242", label: "Visa •••• 4242", icon: "/card-visa.svg" },
     { brand: "Mastercard", mask: "5454 5454 5454 5454", label: "Mastercard •••• 5454", icon: "/card-mastercard.svg" },
@@ -169,6 +181,19 @@ export function Billing() {
       disabled: true,
     },
   ];
+  const COUNTRIES = ["United States", "Canada", "United Kingdom", "Germany", "France", "India", "Australia", "Brazil", "Japan", "Singapore"];
+  const [emailForPayment, setEmailForPayment] = useState("");
+  const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "exists" | "new">("idle");
+  const [continueAsGuest, setContinueAsGuest] = useState(false);
+  const [createAccount, setCreateAccount] = useState(false);
+  const [paymentPassword, setPaymentPassword] = useState("");
+  const [expandedMethod, setExpandedMethod] = useState<string>("card");
+  const [countryQuery, setCountryQuery] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState<string>("");
+  const [discountOpen, setDiscountOpen] = useState(false);
+  const [savedProfiles, setSavedProfiles] = useState<{ id: string; label: string; email: string; country: string }[]>([]);
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [profileNote, setProfileNote] = useState<string>("");
 
   const hydrateFromCache = () => {
     try {
@@ -289,6 +314,18 @@ export function Billing() {
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!showPaymentDialog) return;
+    (async () => {
+      try {
+        const profiles = await mockGetSavedProfiles();
+        setSavedProfiles(profiles);
+      } catch {
+        setSavedProfiles([]);
+      }
+    })();
+  }, [showPaymentDialog]);
 
   useEffect(() => {
     try {
@@ -912,6 +949,284 @@ export function Billing() {
                   </div>
                 </div>
                 <div className="grid gap-4 px-4 py-4">
+                  {/* Email verification / profiles */}
+                  <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Label className="text-slate-700">Billing email</Label>
+                      {emailStatus === "exists" && (
+                        <Badge className="bg-green-100 text-green-700" variant="outline">
+                          Account found
+                        </Badge>
+                      )}
+                      {emailStatus === "new" && (
+                        <Badge className="bg-blue-100 text-blue-700" variant="outline">
+                          New guest
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Input
+                        value={emailForPayment}
+                        onChange={async (e) => {
+                          const next = e.target.value;
+                          setEmailForPayment(next);
+                          setEmailStatus("checking");
+                          const exists = await mockCheckEmailExists(next);
+                          setEmailStatus(exists ? "exists" : "new");
+                        }}
+                        placeholder="name@email.com"
+                        disabled={selectedPaymentType !== "card"}
+                      />
+                      <div className="flex items-center gap-2 flex-wrap text-sm text-slate-600">
+                        {emailStatus === "exists" && (
+                          <>
+                            <span>Enter password to continue</span>
+                            <Input
+                              type="password"
+                              value={paymentPassword}
+                              onChange={(e) => setPaymentPassword(e.target.value)}
+                              className="w-48"
+                              placeholder="Password"
+                            />
+                            <Button variant="ghost" size="sm" onClick={() => setContinueAsGuest(true)}>
+                              Continue as guest
+                            </Button>
+                          </>
+                        )}
+                        {emailStatus === "new" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCreateAccount((p) => !p)}
+                          >
+                            {createAccount ? "Skip account" : "Create account"}
+                          </Button>
+                        )}
+                      </div>
+                      {createAccount && (
+                        <Input
+                          type="password"
+                          value={paymentPassword}
+                          onChange={(e) => setPaymentPassword(e.target.value)}
+                          className="w-56"
+                          placeholder="Set password for new account"
+                        />
+                      )}
+                    </div>
+                    {savedProfiles.length > 0 && (
+                      <div className="grid gap-2">
+                        <Label className="text-slate-700">Saved billing profiles</Label>
+                        <div className="flex flex-col gap-2">
+                          {savedProfiles.map((profile) => (
+                            <button
+                              key={profile.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedProfileId(profile.id);
+                                setEmailForPayment(profile.email);
+                                setSelectedCountry(profile.country);
+                              }}
+                              className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left ${
+                                selectedProfileId === profile.id
+                                  ? "border-blue-500 bg-blue-50"
+                                  : "border-slate-200 bg-white hover:border-blue-300"
+                              }`}
+                            >
+                              <div>
+                                <p className="text-slate-900 text-sm">{profile.label}</p>
+                                <p className="text-slate-600 text-xs">{profile.email} · {profile.country}</p>
+                              </div>
+                              <Button variant="ghost" size="sm">
+                                Edit
+                              </Button>
+                            </button>
+                          ))}
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={profileNote}
+                              onChange={(e) => setProfileNote(e.target.value)}
+                              placeholder="Add notes or label"
+                              className="flex-1"
+                            />
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                const id = `p-${Date.now()}`;
+                                setSavedProfiles((prev) => [
+                                  ...prev,
+                                  { id, label: profileNote || "New profile", email: emailForPayment, country: selectedCountry || "United States" },
+                                ]);
+                                setProfileNote("");
+                              }}
+                            >
+                              Add profile
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Country search */}
+                  <div className="grid gap-2">
+                    <Label className="text-slate-700">Country</Label>
+                    <Input
+                      placeholder="Search country"
+                      value={countryQuery}
+                      onChange={(e) => setCountryQuery(e.target.value)}
+                      className="bg-white"
+                    />
+                    <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto">
+                      {COUNTRIES.filter((c) =>
+                        c.toLowerCase().includes(countryQuery.toLowerCase())
+                      ).map((c) => (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => setSelectedCountry(c)}
+                          className={`px-3 py-1 rounded-full border text-sm ${
+                            selectedCountry === c ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white"
+                          }`}
+                        >
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Payment method selector (collapsible) */}
+                  <div className="grid gap-3">
+                    {["card", "bank", "paypal", "applepay", "gpay"].map((methodId) => {
+                      const meta = PAYMENT_METHODS.find((m) => m.id === methodId);
+                      const open = expandedMethod === methodId;
+                      return (
+                        <div
+                          key={methodId}
+                          className={`rounded-xl border ${open ? "border-blue-400 shadow-sm" : "border-slate-200"} bg-white`}
+                        >
+                          <button
+                            type="button"
+                            className="w-full flex items-center justify-between px-4 py-3"
+                            onClick={() => setExpandedMethod(methodId)}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="size-9 rounded-lg bg-slate-100 flex items-center justify-center">
+                                <CreditCard className="size-5 text-slate-500" />
+                              </div>
+                              <div className="text-left">
+                                <p className="text-slate-900 font-medium">
+                                  {meta?.label || methodId.toUpperCase()}
+                                </p>
+                                <p className="text-slate-600 text-xs">
+                                  {meta?.description || "Payment option"}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="text-sm text-blue-600">
+                              {open ? "Collapse" : "Expand"}
+                            </span>
+                          </button>
+                          {open && methodId === "card" && (
+                            <div className="px-4 pb-4 space-y-3">
+                              <div className="flex flex-wrap gap-2">
+                                {CARD_TEMPLATES.map((card) => (
+                                  <button
+                                    key={card.brand}
+                                    type="button"
+                                    onClick={() =>
+                                      setPaymentForm({
+                                        ...paymentForm,
+                                        brand: card.brand,
+                                        cardNumber: card.mask,
+                                      })
+                                    }
+                                    className={`px-3 py-2 rounded-lg border text-sm flex items-center gap-2 transition ${
+                                      paymentForm.brand === card.brand
+                                        ? "border-blue-500 bg-blue-50 shadow-sm"
+                                        : "border-slate-200 bg-white hover:border-blue-200"
+                                    }`}
+                                  >
+                                    {card.icon ? (
+                                      <img src={card.icon} alt={card.brand} className="h-4 w-auto" />
+                                    ) : null}
+                                    <span>{card.label}</span>
+                                  </button>
+                                ))}
+                              </div>
+                              <div className="grid gap-2">
+                                <Label className="text-slate-700">Cardholder Name</Label>
+                                <Input
+                                  value={paymentForm.cardholderName}
+                                  onChange={(e) => setPaymentForm({ ...paymentForm, cardholderName: e.target.value })}
+                                  placeholder="John Doe"
+                                  className="bg-white"
+                                />
+                              </div>
+                              <div className="grid gap-2">
+                                <Label className="text-slate-700">Card number</Label>
+                                <Input
+                                  value={paymentForm.cardNumber}
+                                  onChange={(e) => setPaymentForm({ ...paymentForm, cardNumber: e.target.value })}
+                                  placeholder="1234 1234 1234 1234"
+                                  className="bg-white"
+                                />
+                              </div>
+                              <div className="grid grid-cols-3 gap-3">
+                                <div className="grid gap-2">
+                                  <Label className="text-slate-700">Expiry month</Label>
+                                  <Input
+                                    value={paymentForm.expMonth}
+                                    onChange={(e) => setPaymentForm({ ...paymentForm, expMonth: e.target.value })}
+                                    placeholder="MM"
+                                    className="bg-white"
+                                  />
+                                </div>
+                                <div className="grid gap-2">
+                                  <Label className="text-slate-700">Expiry year</Label>
+                                  <Input
+                                    value={paymentForm.expYear}
+                                    onChange={(e) => setPaymentForm({ ...paymentForm, expYear: e.target.value })}
+                                    placeholder="YYYY"
+                                    className="bg-white"
+                                  />
+                                </div>
+                                <div className="grid gap-2">
+                                  <Label className="text-slate-700">Security code</Label>
+                                  <Input
+                                    value={paymentForm.cvc}
+                                    onChange={(e) => setPaymentForm({ ...paymentForm, cvc: e.target.value })}
+                                    placeholder="CVC"
+                                    className="bg-white"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          {open && methodId === "bank" && (
+                            <div className="px-4 pb-4 space-y-3 text-sm text-slate-700">
+                              <p>Enter bank transfer details (placeholder — connect to your provider).</p>
+                              <Input placeholder="Account holder name" className="bg-white" />
+                              <Input placeholder="IBAN / Account number" className="bg-white" />
+                              <Input placeholder="Routing / SWIFT" className="bg-white" />
+                            </div>
+                          )}
+                          {open && methodId === "paypal" && (
+                            <div className="px-4 pb-4 space-y-3 text-sm text-slate-700">
+                              <p>Pay securely with PayPal.</p>
+                              <Button variant="outline" size="sm" className="w-full">Connect PayPal</Button>
+                            </div>
+                          )}
+                          {open && (methodId === "applepay" || methodId === "gpay") && (
+                            <div className="px-4 pb-4 space-y-2 text-sm text-slate-700">
+                              <p>Coming soon. This UI is ready; hook into your payment provider (Stripe Payment Request) to enable.</p>
+                              <Button size="sm" disabled className="w-full bg-slate-100 text-slate-500">Coming soon</Button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                   <div className="flex flex-wrap gap-2 justify-center">
                     {CARD_TEMPLATES.map((card) => (
                       <button
