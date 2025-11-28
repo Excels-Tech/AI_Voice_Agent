@@ -84,6 +84,14 @@ export function Billing() {
       return "monthly";
     }
   });
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return localStorage.getItem("selected_plan_id");
+    } catch {
+      return null;
+    }
+  });
   const [usage, setUsage] = useState<UsageState>({
     minutes: { used: 0, total: 5000, percentage: 0 },
     calls: { total: 0 },
@@ -195,6 +203,7 @@ export function Billing() {
         ]);
 
         setCurrentPlan(subscription.plan);
+        setSelectedPlanId((prev) => prev || subscription.plan);
         setPlans(subscription.available_plans || planCatalog.plans || DEFAULT_PLANS);
 
         const minutesStat = usageStats.find((u) => u.metric.includes("minutes"))?.value ?? 0;
@@ -256,6 +265,14 @@ export function Billing() {
     }
   }, [billingCycle]);
 
+  useEffect(() => {
+    try {
+      if (selectedPlanId) localStorage.setItem("selected_plan_id", selectedPlanId);
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [selectedPlanId]);
+
   const currentPlanDetails = useMemo(
     () => plans.find((p) => p.id === currentPlan) ?? DEFAULT_PLANS.find((p) => p.id === currentPlan),
     [plans, currentPlan]
@@ -279,6 +296,7 @@ export function Billing() {
         }))
       );
       setCurrentPlan(planId);
+      setSelectedPlanId(planId);
       toast.success(`Plan updated to ${planId}`);
     } catch (err: any) {
       toast.error(err?.message || "Failed to change plan");
@@ -695,16 +713,17 @@ export function Billing() {
           {plans.map((plan) => {
             const isCurrent = currentPlan === plan.id;
             const isFeatured = plan.id === "professional";
+            const isSelected = selectedPlanId ? selectedPlanId === plan.id : isCurrent;
             return (
               <Card
                 key={plan.id}
-                className={`flex flex-col h-full w-full max-w-sm rounded-2xl border ${
-                  isFeatured
-                    ? "border-blue-500 shadow-2xl ring-2 ring-blue-500/30"
+                className={`flex flex-col h-full w-full max-w-sm rounded-3xl border transition ${
+                  isSelected
+                    ? "border-blue-500 shadow-2xl ring-2 ring-blue-500/25"
                     : "border-slate-200 shadow-lg"
                 } bg-white`}
               >
-                <CardHeader className="text-center space-y-2">
+                <CardHeader className="text-center space-y-3 pb-2 pt-6 px-6">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-slate-900">{plan.name}</CardTitle>
                     {isCurrent && <Badge className="bg-green-500">Current</Badge>}
@@ -722,7 +741,7 @@ export function Billing() {
                     <p className="text-green-600 text-xs">Save up to 17% billed annually</p>
                   )}
                 </CardHeader>
-                <CardContent className="flex flex-col flex-1">
+                <CardContent className="flex flex-col flex-1 px-6 pb-6">
                   <ul className="space-y-3 mb-6 text-left">
                     {plan.features.map((feature, idx) => (
                       <li key={idx} className="flex items-start gap-2">
@@ -743,7 +762,10 @@ export function Billing() {
                             ? "bg-blue-600 hover:bg-blue-700"
                             : "bg-slate-100 text-slate-900 hover:bg-slate-200"
                         }`}
-                        onClick={() => handleUpgrade(plan.id)}
+                        onClick={() => {
+                          setSelectedPlanId(plan.id);
+                          handleUpgrade(plan.id);
+                        }}
                       >
                         {plan.id === "enterprise" ? "Contact Sales" : "Start Free Trial"}
                       </Button>
