@@ -53,6 +53,8 @@ import {
   listInvoices,
   getPaymentMethod,
   getPlans,
+  getDashboardOverview,
+  type DashboardOverview,
 } from "../lib/api";
 import type { AppUser } from "../types/user";
 
@@ -89,6 +91,9 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [billingPrefetched, setBillingPrefetched] = useState(false);
+  const [dashboardData, setDashboardData] = useState<DashboardOverview | null>(null);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
 
   useEffect(() => {
     setCurrentUser(user);
@@ -212,6 +217,26 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     })();
   }, [workspaceId, billingPrefetched]);
 
+  useEffect(() => {
+    if (!workspaceId || activePage !== "dashboard") return;
+    let cancelled = false;
+    setDashboardLoading(true);
+    setDashboardError(null);
+    (async () => {
+      try {
+        const data = await getDashboardOverview(workspaceId);
+        if (!cancelled) setDashboardData(data);
+      } catch (err: any) {
+        if (!cancelled) setDashboardError(err?.message || "Unable to load dashboard data");
+      } finally {
+        if (!cancelled) setDashboardLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceId, activePage]);
+
   const handleUserUpdate = (updates: Partial<AppUser>) => {
     setCurrentUser((prev) => ({ ...prev, ...updates }));
   };
@@ -220,6 +245,73 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
     toast.success("Logged out successfully");
     onLogout();
   };
+
+  const formatNumber = (value?: number | null) => {
+    if (value === undefined || value === null) return "--";
+    return value.toLocaleString();
+  };
+
+  const formatDuration = (seconds?: number | null) => {
+    if (seconds === undefined || seconds === null) return "--";
+    if (seconds < 60) return `${seconds}s`;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    if (mins >= 60) {
+      const hours = Math.floor(mins / 60);
+      const remainingMins = mins % 60;
+      return `${hours}h ${remainingMins}m`;
+    }
+    return `${mins}m ${secs.toString().padStart(2, "0")}s`;
+  };
+
+  const sentimentVariant = (sentiment?: string) => {
+    if (sentiment === "positive") return "default";
+    if (sentiment === "negative") return "destructive";
+    return "secondary";
+  };
+
+  const stats = dashboardData?.stats;
+  const periodLabel = dashboardData ? `Last ${dashboardData.period_days} days` : "Last 30 days";
+  const statCards = [
+    {
+      label: "Active Agents",
+      value: formatNumber(stats?.active_agents),
+      change: stats ? `${formatNumber(stats.total_calls)} calls ${periodLabel.toLowerCase()}` : "Tracking agents",
+      icon: Bot,
+      color: "from-blue-500 to-cyan-500",
+    },
+    {
+      label: "Total Calls",
+      value: formatNumber(stats?.total_calls),
+      change: stats
+        ? `${formatNumber(stats.inbound_calls)} inbound / ${formatNumber(stats.outbound_calls)} outbound`
+        : periodLabel,
+      icon: Phone,
+      color: "from-green-500 to-emerald-500",
+    },
+    {
+      label: "Minutes Used",
+      value: stats ? `${Math.round(stats.minutes_used).toLocaleString()} min` : "--",
+      change: periodLabel,
+      icon: Clock,
+      color: "from-purple-500 to-pink-500",
+    },
+    {
+      label: "Avg Call Duration",
+      value: formatDuration(stats?.average_call_duration_seconds),
+      change: stats
+        ? `Avg handle ${formatDuration(stats.average_handle_time_seconds)}`
+        : "Tracking handle time",
+      icon: TrendingUp,
+      color: "from-orange-500 to-red-500",
+    },
+  ];
+  const recentCalls = dashboardData?.recent_calls ?? [];
+  const activeAgents = dashboardData?.active_agents ?? [];
+  const updatedLabel = dashboardData?.updated_at
+    ? new Date(dashboardData.updated_at).toLocaleString()
+    : null;
+  const isStatLoading = dashboardLoading && !dashboardData;
 
   if (showAgentBuilder) {
     const BuilderComponent = useAdvancedBuilder ? AgentBuilderAdvanced : AgentBuilder;
@@ -346,7 +438,9 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-slate-900 mb-2">Welcome back, {currentUser.name}!</h1>
-                <p className="text-slate-600">Here's your AI voice agent overview</p>
+                <p className="text-slate-600">
+                  {periodLabel} snapshot{updatedLabel ? ` (updated ${updatedLabel})` : ""}
+                </p>
               </div>
               <Button
                 size="lg"
@@ -358,41 +452,22 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
               </Button>
             </div>
 
+            {dashboardError && (
+              <Card className="border-red-200 bg-red-50">
+                <CardContent className="text-sm text-red-700">
+                  {dashboardError}
+                </CardContent>
+              </Card>
+            )}
+
             {/* Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {[
-                {
-                  label: "Active Agents",
-                  value: "8",
-                  change: "+2 this month",
-                  icon: Bot,
-                  color: "from-blue-500 to-cyan-500",
-                },
-                {
-                  label: "Total Calls",
-                  value: "1,247",
-                  change: "+156 this week",
-                  icon: Phone,
-                  color: "from-green-500 to-emerald-500",
-                },
-                {
-                  label: "Minutes Used",
-                  value: "3,842",
-                  change: "62% of plan",
-                  icon: Clock,
-                  color: "from-purple-500 to-pink-500",
-                },
-                {
-                  label: "Avg Response Time",
-                  value: "0.5s",
-                  change: "24% faster",
-                  icon: TrendingUp,
-                  color: "from-orange-500 to-red-500",
-                },
-              ].map((stat) => (
+              {statCards.map((stat) => (
                 <Card
                   key={stat.label}
-                  className="bg-white border-slate-200 hover:shadow-lg transition-shadow cursor-pointer"
+                  className={`bg-white border-slate-200 hover:shadow-lg transition-shadow cursor-pointer ${
+                    isStatLoading ? "animate-pulse" : ""
+                  }`}
                 >
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between mb-4">
@@ -459,49 +534,28 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                 </CardContent>
               </Card>
             </div>
-
             {/* Recent Activity */}
             <div className="grid md:grid-cols-2 gap-6">
               <Card className="bg-white border-slate-200">
                 <CardHeader className="border-b">
                   <div className="flex items-center justify-between">
                     <CardTitle>Recent Calls</CardTitle>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setActivePage("calls")}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setActivePage("calls")}>
                       View All
                     </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="p-6">
                   <div className="space-y-3">
-                    {[
-                      {
-                        caller: "John Smith",
-                        agent: "Sales Agent",
-                        duration: "3:24",
-                        status: "completed",
-                        sentiment: "positive",
-                      },
-                      {
-                        caller: "Sarah Johnson",
-                        agent: "Support Agent",
-                        duration: "5:12",
-                        status: "completed",
-                        sentiment: "neutral",
-                      },
-                      {
-                        caller: "+1 555 0123",
-                        agent: "Lead Agent",
-                        duration: "1:45",
-                        status: "voicemail",
-                        sentiment: "neutral",
-                      },
-                    ].map((call, idx) => (
+                    {dashboardLoading && !recentCalls.length && (
+                      <p className="text-slate-500 text-sm">Loading recent calls...</p>
+                    )}
+                    {!dashboardLoading && recentCalls.length === 0 && (
+                      <p className="text-slate-500 text-sm">No calls yet. New calls will show here.</p>
+                    )}
+                    {recentCalls.map((call) => (
                       <div
-                        key={idx}
+                        key={call.id}
                         className="flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
                       >
                         <div className="flex items-center gap-3">
@@ -509,23 +563,20 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                             <Phone className="size-5" />
                           </div>
                           <div>
-                            <p className="text-slate-900">{call.caller}</p>
+                            <p className="text-slate-900">
+                              {call.caller_name || call.caller_number || "Unknown caller"}
+                            </p>
                             <p className="text-slate-600 text-sm">
-                              {call.agent} • {call.duration}
+                              {(call.agent_name || (call.agent_id ? `Agent ${call.agent_id}` : "Unassigned"))} | {formatDuration(call.duration_seconds)}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge
-                            variant={
-                              call.sentiment === "positive"
-                                ? "default"
-                                : call.sentiment === "neutral"
-                                ? "secondary"
-                                : "destructive"
-                            }
-                          >
+                          <Badge variant={sentimentVariant(call.sentiment)}>
                             {call.sentiment}
+                          </Badge>
+                          <Badge variant="outline" className="capitalize">
+                            {call.status}
                           </Badge>
                         </div>
                       </div>
@@ -540,28 +591,17 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                 </CardHeader>
                 <CardContent className="p-6">
                   <div className="space-y-3">
-                    {[
-                      {
-                        name: "Sales Agent",
-                        calls: 234,
-                        status: "active",
-                        language: "English (US)",
-                      },
-                      {
-                        name: "Support Agent",
-                        calls: 189,
-                        status: "active",
-                        language: "English (UK)",
-                      },
-                      {
-                        name: "Lead Qualifier",
-                        calls: 156,
-                        status: "active",
-                        language: "Spanish",
-                      },
-                    ].map((agent) => (
+                    {dashboardLoading && !activeAgents.length && (
+                      <p className="text-slate-500 text-sm">Loading active agents...</p>
+                    )}
+                    {!dashboardLoading && activeAgents.length === 0 && (
+                      <p className="text-slate-500 text-sm">
+                        No active agents yet. Launch your first agent to see activity here.
+                      </p>
+                    )}
+                    {activeAgents.map((agent) => (
                       <div
-                        key={agent.name}
+                        key={agent.id}
                         className="flex items-center justify-between p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer"
                         onClick={() => setActivePage("agents")}
                       >
@@ -572,11 +612,11 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                           <div>
                             <p className="text-slate-900">{agent.name}</p>
                             <p className="text-slate-600 text-sm">
-                              {agent.calls} calls • {agent.language}
+                              {formatNumber(agent.calls)} calls | {agent.language}
                             </p>
                           </div>
                         </div>
-                        <Badge className="bg-green-500">
+                        <Badge className={agent.status === "active" ? "bg-green-500" : "bg-slate-500"}>
                           {agent.status}
                         </Badge>
                       </div>

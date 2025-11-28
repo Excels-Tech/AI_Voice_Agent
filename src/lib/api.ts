@@ -245,6 +245,57 @@ export async function markAllNotificationsRead(workspaceId: number) {
   return apiFetch(`/api/notifications/read-all?${params.toString()}`, { method: "PUT" });
 }
 
+// Dashboard
+export interface DashboardStats {
+  active_agents: number;
+  total_calls: number;
+  completed_calls: number;
+  inbound_calls: number;
+  outbound_calls: number;
+  minutes_used: number;
+  average_call_duration_seconds: number;
+  average_handle_time_seconds: number;
+}
+
+export interface DashboardCall {
+  id: number;
+  caller_name?: string | null;
+  caller_number?: string | null;
+  agent_id?: number | null;
+  agent_name?: string | null;
+  duration_seconds: number;
+  status: string;
+  sentiment: string;
+  started_at: string;
+}
+
+export interface DashboardAgent {
+  id: number;
+  name: string;
+  status: string;
+  language: string;
+  calls: number;
+  average_handle_time?: number | null;
+  sentiment_score?: number | null;
+}
+
+export interface DashboardOverview {
+  workspace_id: number;
+  period_days: number;
+  stats: DashboardStats;
+  recent_calls: DashboardCall[];
+  active_agents: DashboardAgent[];
+  updated_at: string;
+}
+
+export async function getDashboardOverview(workspaceId: number, days = 30) {
+  const params = new URLSearchParams({
+    workspace_id: String(workspaceId),
+    days: String(days),
+  });
+  return apiFetch<DashboardOverview>(`/api/dashboard/overview?${params.toString()}`);
+}
+
 // Calls
 export interface CallLog {
   id: number;
