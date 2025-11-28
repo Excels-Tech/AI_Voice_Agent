@@ -159,7 +159,6 @@ export function Billing() {
     created_at?: string;
   } | null>(null);
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
-  const invoicesScrollable = invoices.length >= 5;
   const CARD_TEMPLATES = [
     { brand: "Visa", mask: "4242 4242 4242 4242", label: "Visa •••• 4242", icon: "/card-visa.svg" },
     { brand: "Mastercard", mask: "5454 5454 5454 5454", label: "Mastercard •••• 5454", icon: "/card-mastercard.svg" },
@@ -598,7 +597,10 @@ export function Billing() {
               <span className="text-3xl font-bold text-slate-900">{usage.minutes.used.toLocaleString()}</span>
               <span className="text-slate-500 ml-1">/ {usage.minutes.total.toLocaleString()}</span>
             </div>
-            <Progress value={usage.minutes.percentage} className="h-2 mb-2 bg-slate-100" indicatorClassName={usage.minutes.percentage > 90 ? "bg-red-500" : "bg-blue-600"} />
+            <Progress
+              value={usage.minutes.percentage}
+              className={`h-2 mb-2 bg-slate-100 ${usage.minutes.percentage > 90 ? "[&>div]:bg-red-500" : "[&>div]:bg-blue-600"}`}
+            />
             <div className="flex items-center justify-between text-sm">
               <span className="text-slate-500">{usage.minutes.percentage.toFixed(1)}% used</span>
               {usage.minutes.percentage > 80 && (
