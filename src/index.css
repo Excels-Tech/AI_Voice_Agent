@@ -3677,3 +3677,11 @@ html {
     transform: translateY(0) scale(1);
   }
 }
+
+/* Override utility hues for readability on light backgrounds */
+.text-white {
+  color: #171717 !important;
+}
+.text-blue-100 {
+  color: oklch(0.17 0 0) !important;
+}
