@@ -138,10 +138,10 @@ export function Billing() {
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
   const invoicesScrollable = invoices.length >= 5;
   const CARD_TEMPLATES = [
-    { brand: "Visa", mask: "4242 4242 4242 4242", label: "Visa •••• 4242" },
-    { brand: "Mastercard", mask: "5454 5454 5454 5454", label: "Mastercard •••• 5454" },
-    { brand: "Amex", mask: "3434 343434 34343", label: "Amex •••• 3434" },
-    { brand: "Discover", mask: "6011 0000 0000 0000", label: "Discover •••• 6011" },
+    { brand: "Visa", mask: "4242 4242 4242 4242", label: "Visa •••• 4242", icon: "/card-visa.svg" },
+    { brand: "Mastercard", mask: "5454 5454 5454 5454", label: "Mastercard •••• 5454", icon: "/card-mastercard.svg" },
+    { brand: "Amex", mask: "3434 343434 34343", label: "Amex •••• 3434", icon: "/card-amex.svg" },
+    { brand: "Discover", mask: "6011 0000 0000 0000", label: "Discover •••• 6011", icon: "/card-discover.svg" },
   ];
 
   const hydrateFromCache = () => {
@@ -854,6 +854,9 @@ export function Billing() {
                             : "border-slate-200 bg-white hover:border-blue-300"
                         }`}
                       >
+                        {card.icon ? (
+                          <img src={card.icon} alt={card.brand} className="h-4 w-auto" />
+                        ) : null}
                         <span>{card.label}</span>
                       </button>
                     ))}
