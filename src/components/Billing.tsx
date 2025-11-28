@@ -182,12 +182,14 @@ export function Billing() {
     },
   ];
   const COUNTRIES = [
-    "United States", "Canada", "United Kingdom", "Germany", "France", "Italy", "Spain", "Netherlands", "Sweden", "Norway",
-    "Denmark", "Finland", "Ireland", "Switzerland", "Austria", "Belgium", "Portugal", "Greece", "Poland", "Czech Republic",
-    "Hungary", "Romania", "Turkey", "Israel", "United Arab Emirates", "Saudi Arabia", "Qatar", "India", "Pakistan", "Bangladesh",
-    "Sri Lanka", "Nepal", "China", "Japan", "South Korea", "Singapore", "Malaysia", "Indonesia", "Philippines", "Thailand",
-    "Vietnam", "Australia", "New Zealand", "Brazil", "Mexico", "Argentina", "Chile", "Colombia", "Peru", "South Africa", "Nigeria",
-    "Kenya", "Egypt"
+    "United States", "Canada", "Mexico", "Brazil", "Argentina", "Chile", "Colombia", "Peru", "Uruguay",
+    "United Kingdom", "Ireland", "Germany", "France", "Italy", "Spain", "Portugal", "Netherlands", "Belgium", "Switzerland",
+    "Austria", "Sweden", "Norway", "Denmark", "Finland", "Iceland", "Poland", "Czech Republic", "Hungary", "Romania",
+    "Bulgaria", "Greece", "Turkey", "Israel", "United Arab Emirates", "Saudi Arabia", "Qatar", "Kuwait", "Egypt", "South Africa",
+    "Nigeria", "Kenya", "Morocco", "India", "Pakistan", "Bangladesh", "Sri Lanka", "Nepal", "China", "Japan", "South Korea",
+    "Singapore", "Malaysia", "Indonesia", "Philippines", "Thailand", "Vietnam", "Taiwan", "Hong Kong", "Australia", "New Zealand",
+    "Russia", "Ukraine", "Belarus", "Estonia", "Latvia", "Lithuania", "Croatia", "Slovenia", "Slovakia", "Luxembourg",
+    "United States Minor Outlying Islands" // placeholder to show we can extend list
   ];
   const [emailForPayment, setEmailForPayment] = useState("");
   const [emailStatus, setEmailStatus] = useState<"idle" | "checking" | "exists" | "new">("idle");
@@ -702,7 +704,7 @@ export function Billing() {
                   <select
                     value={selectedCountry}
                     onChange={(e) => setSelectedCountry(e.target.value)}
-                    className="border rounded-md px-3 py-2 text-sm text-slate-900 bg-white flex-1 min-w-[200px]"
+                    className="border rounded-md px-3 py-2 text-sm text-slate-900 bg-white flex-1 min-w-[220px]"
                   >
                     <option value="">Select country</option>
                     {COUNTRIES.filter((c) =>
@@ -717,7 +719,7 @@ export function Billing() {
                     placeholder="Search country"
                     value={countryQuery}
                     onChange={(e) => setCountryQuery(e.target.value)}
-                    className="bg-white flex-1 min-w-[200px] text-slate-900"
+                    className="bg-white flex-1 min-w-[220px] text-slate-900"
                   />
                 </div>
               </div>
@@ -1566,27 +1568,27 @@ export function Billing() {
                   {/* Country search */}
                   <div className="grid gap-2">
                     <Label className="text-slate-700">Country</Label>
-                    <Input
-                      placeholder="Search country"
-                      value={countryQuery}
-                      onChange={(e) => setCountryQuery(e.target.value)}
-                      className="bg-white"
-                    />
-                    <div className="flex flex-wrap gap-2 max-h-28 overflow-y-auto">
-                      {COUNTRIES.filter((c) =>
-                        c.toLowerCase().includes(countryQuery.toLowerCase())
-                      ).map((c) => (
-                        <button
-                          key={c}
-                          type="button"
-                          onClick={() => setSelectedCountry(c)}
-                          className={`px-3 py-1 rounded-full border text-sm ${
-                            selectedCountry === c ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white"
-                          }`}
-                        >
-                          {c}
-                        </button>
-                      ))}
+                    <div className="flex gap-3 flex-wrap">
+                      <select
+                        value={selectedCountry}
+                        onChange={(e) => setSelectedCountry(e.target.value)}
+                        className="border rounded-md px-3 py-2 text-sm text-slate-900 bg-white flex-1 min-w-[220px]"
+                      >
+                        <option value="">Select country</option>
+                        {COUNTRIES.filter((c) =>
+                          c.toLowerCase().includes(countryQuery.toLowerCase())
+                        ).map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                      <Input
+                        placeholder="Search country"
+                        value={countryQuery}
+                        onChange={(e) => setCountryQuery(e.target.value)}
+                        className="bg-white flex-1 min-w-[220px] text-slate-900"
+                      />
                     </div>
                   </div>
 
