@@ -227,7 +227,10 @@ export function Billing() {
   });
   const [providerSaving, setProviderSaving] = useState(false);
   const toggleMethod = (id: string) =>
-    setExpandedMethod((prev) => (prev === id ? "" : id));
+    setExpandedMethod((prev) => {
+      if (id === "paypal") setShowPaypalCreds(true);
+      return prev === id ? "" : id;
+    });
 
   const hydrateFromCache = () => {
     try {
@@ -900,18 +903,54 @@ export function Billing() {
                       {open && methodId === "bank" && (
                         <div className="px-4 pb-4 space-y-3 text-sm text-slate-700">
                           <p>Enter bank transfer details (placeholder — connect to your provider).</p>
-                          <Input placeholder="Account holder name" className="bg-white" />
-                          <Input placeholder="IBAN / Account number" className="bg-white" />
-                          <Input placeholder="Routing / SWIFT" className="bg-white" />
+                          <Input placeholder="Account holder name" className="bg-white text-slate-900" />
+                          <Input placeholder="IBAN / Account number" className="bg-white text-slate-900" />
+                          <Input placeholder="Routing / SWIFT" className="bg-white text-slate-900" />
                         </div>
                       )}
                       {open && methodId === "paypal" && (
                         <div className="px-4 pb-4 space-y-3 text-sm text-slate-700">
                           <p>Pay securely with PayPal.</p>
-                          <Button variant="outline" size="sm" className="w-full">Connect PayPal</Button>
+                          <ul className="list-disc list-inside text-slate-600 text-xs space-y-1">
+                            <li>Get a REST app at PayPal Developer → Dashboard → My Apps & Credentials.</li>
+                            <li>Copy Client ID and Secret for Sandbox/Live.</li>
+                            <li>Ensure webhook/return URLs match your domain.</li>
+                          </ul>
+                          <div className="grid gap-3">
+                            <Input
+                              placeholder="PayPal Client ID"
+                              value={paypalConfig.clientId}
+                              onChange={(e) => setPaypalConfig((p) => ({ ...p, clientId: e.target.value }))}
+                              className="bg-white text-slate-900"
+                            />
+                            <Input
+                              placeholder="PayPal Client Secret"
+                              type="password"
+                              value={paypalConfig.clientSecret}
+                              onChange={(e) => setPaypalConfig((p) => ({ ...p, clientSecret: e.target.value }))}
+                              className="bg-white text-slate-900"
+                            />
+                            <select
+                              value={paypalConfig.mode}
+                              onChange={(e) => setPaypalConfig((p) => ({ ...p, mode: e.target.value as "sandbox" | "live" }))}
+                              className="border rounded-md px-2 py-1 text-sm text-slate-900 bg-white"
+                            >
+                              <option value="sandbox">Sandbox</option>
+                              <option value="live">Live</option>
+                            </select>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="w-full bg-blue-50 text-blue-800 border-blue-200"
+                              onClick={() => handleSaveProvider("paypal")}
+                              disabled={providerSaving}
+                            >
+                              {providerSaving ? "Saving..." : "Save credentials"}
+                            </Button>
+                          </div>
                         </div>
                       )}
-                          {open && (methodId === "applepay" || methodId === "gpay") && (
+                      {open && (methodId === "applepay" || methodId === "gpay") && (
                         <div className="px-4 pb-4 space-y-3 text-sm text-slate-700">
                           {methodId === "applepay" && (
                             <>
