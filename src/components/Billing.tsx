@@ -1096,12 +1096,29 @@ export function Billing() {
                   </div>
 
                   {/* Payment method selector (collapsible) */}
-                  <div className="grid gap-3">
-                    {["card", "bank", "paypal", "applepay", "gpay"].map((methodId) => {
-                      const meta = PAYMENT_METHODS.find((m) => m.id === methodId);
-                      const open = expandedMethod === methodId;
-                      return (
-                        <div
+          <div className="grid gap-3">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <Label className="text-slate-700">Payment method</Label>
+                <p className="text-slate-500 text-xs">Select to expand its details</p>
+              </div>
+              <select
+                value={expandedMethod}
+                onChange={(e) => setExpandedMethod(e.target.value)}
+                className="border rounded-md px-2 py-1 text-sm text-slate-700 bg-white"
+              >
+                <option value="card">Credit / Debit Card</option>
+                <option value="bank">Bank Transfer</option>
+                <option value="paypal">PayPal</option>
+                <option value="applepay">Apple Pay</option>
+                <option value="gpay">Google Pay</option>
+              </select>
+            </div>
+            {["card", "bank", "paypal", "applepay", "gpay"].map((methodId) => {
+              const meta = PAYMENT_METHODS.find((m) => m.id === methodId);
+              const open = expandedMethod === methodId;
+              return (
+                <div
                           key={methodId}
                           className={`rounded-xl border ${open ? "border-blue-400 shadow-sm" : "border-slate-200"} bg-white`}
                         >
