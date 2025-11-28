@@ -75,7 +75,7 @@ const DEFAULT_PLANS: Plan[] = [
 
 export function Billing() {
   const [workspaceId, setWorkspaceId] = useState<number | null>(null);
-  const [billingCycle] = useState<"monthly" | "annual">("monthly");
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const [usage, setUsage] = useState<UsageState>({
     minutes: { used: 0, total: 5000, percentage: 0 },
     calls: { total: 0 },
@@ -643,12 +643,37 @@ export function Billing() {
         id="plans-section"
         className="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 rounded-2xl border border-slate-200/60 shadow-sm p-6 md:p-10"
       >
-        <div className="text-center max-w-3xl mx-auto mb-10">
+        <div className="text-center max-w-3xl mx-auto mb-8 space-y-3">
           <p className="text-blue-600 font-semibold">Simple, Transparent Pricing</p>
-          <h2 className="text-3xl md:text-4xl text-slate-900 mb-2">Choose the plan that&apos;s right for you</h2>
+          <h2 className="text-3xl md:text-4xl text-slate-900">Choose the plan that&apos;s right for you</h2>
           <p className="text-slate-600">
             Pick a plan and start building without surprises. All plans include secure billing and support.
           </p>
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <span className="text-sm text-slate-600">Billing cycle</span>
+            <div className="inline-flex rounded-full border border-blue-200 bg-white p-1 shadow-sm">
+              <button
+                onClick={() => setBillingCycle("monthly")}
+                className={`px-4 py-1 text-sm rounded-full transition ${
+                  billingCycle === "monthly"
+                    ? "bg-blue-600 text-white shadow"
+                    : "text-slate-700 hover:bg-blue-50"
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setBillingCycle("annual")}
+                className={`px-4 py-1 text-sm rounded-full transition ${
+                  billingCycle === "annual"
+                    ? "bg-blue-600 text-white shadow"
+                    : "text-slate-700 hover:bg-blue-50"
+                }`}
+              >
+                Annual
+              </button>
+            </div>
+          </div>
         </div>
         <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto justify-items-center">
           {plans.map((plan) => {
@@ -677,6 +702,9 @@ export function Billing() {
                     <span className="text-4xl text-slate-900">${priceForPlan(plan)}</span>
                     <span className="text-slate-600">/{billingCycle === "monthly" ? "month" : "year"}</span>
                   </div>
+                  {billingCycle === "annual" && (
+                    <p className="text-green-600 text-xs">Save up to 17% billed annually</p>
+                  )}
                 </CardHeader>
                 <CardContent className="flex flex-col flex-1">
                   <ul className="space-y-3 mb-6 text-left">
