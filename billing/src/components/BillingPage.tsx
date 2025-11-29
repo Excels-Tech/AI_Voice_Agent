@@ -961,44 +961,52 @@ export default function BillingPage({ onNavigateToAddPayment, refreshSignal = 0 
             </div>
 
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 items-stretch">
+              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200 h-full">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
                     <CheckCircle className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <p className="text-green-900">Total Paid</p>
-                    <p className="text-green-600 text-sm">{allInvoices.filter(i => i.status === 'paid').length} invoices</p>
+                    <p className="text-green-900 font-medium">Total Paid</p>
+                    <p className="text-green-700 text-sm mb-2">{allInvoices.length} invoices</p>
                   </div>
                 </div>
-                <p className="text-green-900">{formatCurrency(allInvoices.filter(i => i.status === 'paid').reduce((sum, inv) => sum + inv.amount, 0))}</p>
+                <p className="text-xl text-green-900 font-semibold">{formatCurrency(totalSpent)}</p>
               </div>
 
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200 h-full">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-10 h-10 bg-blue-500 rounded-lg flex items-center justify-center">
                     <Receipt className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <p className="text-blue-900">This Year</p>
-                    <p className="text-blue-600 text-sm">2024</p>
+                    <p className="text-blue-900 font-medium">This Year</p>
+                    <p className="text-blue-700 text-sm mb-2">{new Date().getFullYear()}</p>
                   </div>
                 </div>
-                <p className="text-blue-900">{formatCurrency(allInvoices.filter(i => i.date.includes('2024')).reduce((sum, inv) => sum + inv.amount, 0))}</p>
+                <p className="text-xl text-blue-900 font-semibold">
+                  {formatCurrency(
+                    allInvoices
+                      .filter((inv) => new Date(inv.date).getFullYear() === new Date().getFullYear())
+                      .reduce((sum, inv) => sum + inv.amount, 0)
+                  )}
+                </p>
               </div>
 
-              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200 h-full">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
                     <TrendingUp className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <p className="text-purple-900">Average Payment</p>
-                    <p className="text-purple-600 text-sm">Per invoice</p>
+                    <p className="text-purple-900 font-medium">Average Payment</p>
+                    <p className="text-purple-700 text-sm mb-2">Per invoice</p>
                   </div>
                 </div>
-                <p className="text-purple-900">{formatCurrency(totalSpent / allInvoices.length)}</p>
+                <p className="text-xl text-purple-900 font-semibold">
+                  {allInvoices.length ? formatCurrency(totalSpent / allInvoices.length) : '$0.00'}
+                </p>
               </div>
             </div>
             
