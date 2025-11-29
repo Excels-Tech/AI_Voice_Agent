@@ -13,7 +13,15 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
           {/* Company Info */}
           <div className="space-y-4">
-            <h3 className="text-white text-lg">Voice AI Platform</h3>
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 text-white flex items-center justify-center font-semibold text-lg">
+                VA
+              </div>
+              <div>
+                <h3 className="text-white text-lg leading-tight">Voice AI Platform</h3>
+                <p className="text-slate-400 text-sm leading-tight">Conversational Intelligence</p>
+              </div>
+            </div>
             <p className="text-slate-300 leading-relaxed">
               Build intelligent voice agents that sound human. Scale your customer service, sales, and support with AI-powered voice
               technology.
@@ -40,7 +48,7 @@ export default function Footer() {
 
           {/* Product */}
           <div className="space-y-3">
-            <h4 className="text-white text-base">Product</h4>
+            <h4 className="text-white text-base font-semibold tracking-wide uppercase">Product</h4>
             <ul className="space-y-2 text-slate-300">
               <li><a href="#" className="hover:text-white transition-colors">Features</a></li>
               <li><a href="#" className="hover:text-white transition-colors">Pricing</a></li>
@@ -53,7 +61,7 @@ export default function Footer() {
 
           {/* Resources */}
           <div className="space-y-3">
-            <h4 className="text-white text-base">Resources</h4>
+            <h4 className="text-white text-base font-semibold tracking-wide uppercase">Resources</h4>
             <ul className="space-y-2 text-slate-300">
               <li><a href="#" className="hover:text-white transition-colors">Documentation</a></li>
               <li><a href="#" className="hover:text-white transition-colors">Tutorials</a></li>
@@ -66,7 +74,7 @@ export default function Footer() {
 
           {/* Company */}
           <div className="space-y-3">
-            <h4 className="text-white text-base">Company</h4>
+            <h4 className="text-white text-base font-semibold tracking-wide uppercase">Company</h4>
             <ul className="space-y-2 text-slate-300">
               <li><a href="#" className="hover:text-white transition-colors">About Us</a></li>
               <li><a href="#" className="hover:text-white transition-colors">Careers</a></li>
