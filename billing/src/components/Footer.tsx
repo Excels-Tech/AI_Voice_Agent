@@ -100,9 +100,10 @@ export default function Footer() {
                 key={idx}
                 href="#"
                 aria-label={item.label}
-                className="w-11 h-11 rounded-lg bg-[#111d30] text-slate-300 flex items-center justify-center hover:text-white hover:bg-[#1b2a45] transition-colors"
+                className="w-11 h-11 rounded-full bg-[#1b2a45] text-slate-100 flex items-center justify-center hover:text-white hover:bg-[#27406a] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
               >
                 {item.icon}
+                <span className="sr-only">{item.label}</span>
               </a>
             ))}
           </div>
