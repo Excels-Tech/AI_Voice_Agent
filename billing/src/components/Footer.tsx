@@ -5,7 +5,10 @@ export default function Footer() {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="bg-[#0f1827] text-slate-200 mt-16 border-t border-[#1c2740]">
+    <footer
+      className="mt-16 border-t border-[#1c2740]"
+      style={{ backgroundColor: "#0f1827", color: "#d7dce6" }}
+    >
       <div className="max-w-7xl mx-auto px-6 md:px-10 lg:px-16 py-14">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
           {/* Company Info */}
