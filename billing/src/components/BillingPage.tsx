@@ -859,12 +859,8 @@ export default function BillingPage({ onNavigateToAddPayment, refreshSignal = 0 
               <h3 className="text-gray-900">Payment Methods</h3>
               <button
                 onClick={() => onNavigateToAddPayment?.()}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-60"
                 disabled={!onNavigateToAddPayment}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                  onNavigateToAddPayment
-                    ? "bg-blue-600 text-white hover:bg-blue-700"
-                    : "bg-gray-200 text-gray-500 cursor-not-allowed"
-                }`}
               >
                 <Plus className="w-4 h-4" />
                 Add Payment Method
@@ -873,7 +869,7 @@ export default function BillingPage({ onNavigateToAddPayment, refreshSignal = 0 
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {paymentMethods.map((method) => (
-                <div key={method.id} className="bg-white rounded-xl border border-gray-200 p-6">
+                <div key={method.id} className="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center text-white">
@@ -881,23 +877,17 @@ export default function BillingPage({ onNavigateToAddPayment, refreshSignal = 0 
                       </div>
                       <div>
                         <p className="text-gray-900">
-                          {method.type === 'bank' && method.bankName ? method.bankName : method.brand} 
+                          {method.type === 'bank' && method.bankName ? method.bankName : method.brand}
                           {method.type !== 'paypal' && method.type !== 'apple-pay' && method.type !== 'google-pay' && ` •••• ${method.last4}`}
                         </p>
                         {method.expiryMonth && method.expiryYear && (
-                          <p className="text-gray-500 text-sm">
-                            Expires {method.expiryMonth}/{method.expiryYear}
-                          </p>
+                          <p className="text-gray-500 text-sm">Expires {method.expiryMonth}/{method.expiryYear}</p>
                         )}
                         {method.type === 'bank' && method.accountType && (
-                          <p className="text-gray-500 text-sm capitalize">
-                            {method.accountType} Account
-                          </p>
+                          <p className="text-gray-500 text-sm capitalize">{method.accountType} Account</p>
                         )}
                         {method.type === 'paypal' && (
-                          <p className="text-gray-500 text-sm">
-                            {method.last4}@email.com
-                          </p>
+                          <p className="text-gray-500 text-sm">PayPal</p>
                         )}
                       </div>
                     </div>
