@@ -1,5 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { CreditCard, Building, Smartphone, Wallet, ArrowLeft, Check, AlertCircle } from 'lucide-react';
+import {
+  CreditCard,
+  Building,
+  Smartphone,
+  Wallet,
+  ArrowLeft,
+  Check,
+  AlertCircle,
+  Link as LinkIcon,
+  Key,
+  Settings,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { upsertPaymentMethod, listWorkspaces } from '@/lib/api';
 
@@ -20,13 +31,18 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
   const [selectedMethod, setSelectedMethod] = useState<string>('credit-card');
   const [workspaceId, setWorkspaceId] = useState<number | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [showApiConfig, setShowApiConfig] = useState(false);
   const [form, setForm] = useState({
     brand: 'Visa',
     cardNumber: '',
-    expMonth: '12',
-    expYear: String(new Date().getFullYear() + 2),
+    expMonth: '',
+    expYear: '',
     cardholderName: '',
     billingEmail: '',
+    address: '',
+    city: '',
+    state: '',
+    zip: '',
   });
 
   useEffect(() => {
@@ -36,7 +52,7 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
         const active = workspaces?.find((w: any) => w.is_active) ?? workspaces?.[0];
         const wsId = active?.id ?? active?.workspace_id;
         if (wsId) setWorkspaceId(wsId);
-      } catch (err) {
+      } catch {
         toast.error('Unable to load workspace for billing');
       }
     })();
@@ -63,7 +79,7 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
       return;
     }
     if (selectedMethod !== 'credit-card') {
-      toast.info('Use the main billing screen to configure this provider.');
+      toast.info('Use the main Billing screen to configure this provider.');
       return;
     }
     const last4Raw = form.cardNumber.replace(/\s+/g, '').slice(-4);
@@ -76,8 +92,8 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
       await upsertPaymentMethod(workspaceId, {
         brand: form.brand,
         last4: last4Raw,
-        exp_month: parseInt(form.expMonth),
-        exp_year: parseInt(form.expYear),
+        exp_month: parseInt(form.expMonth || '0'),
+        exp_year: parseInt(form.expYear || '0'),
         cardholder_name: form.cardholderName,
         billing_email: form.billingEmail,
         provider: 'stripe',
@@ -109,6 +125,7 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
+          {/* Payment Method Selection */}
           <div className="lg:col-span-1">
             <h3 className="text-gray-900 mb-4">Select Payment Type</h3>
             <div className="space-y-2">
@@ -117,18 +134,14 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
                   key={method.id}
                   onClick={() => setSelectedMethod(method.id)}
                   className={`w-full flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
-                    selectedMethod === method.id
-                      ? 'border-blue-600 bg-blue-50'
-                      : 'border-gray-200 bg-white hover:border-gray-300'
+                    selectedMethod === method.id ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-gray-200 bg-white hover:border-gray-300'
                   }`}
                 >
                   <div className={selectedMethod === method.id ? 'text-blue-600' : 'text-gray-600'}>
                     {method.icon}
                   </div>
                   <div className="flex-1 text-left">
-                    <p className={selectedMethod === method.id ? 'text-blue-900' : 'text-gray-900'}>
-                      {method.name}
-                    </p>
+                    <p className={selectedMethod === method.id ? 'text-blue-900' : 'text-gray-900'}>{method.name}</p>
                     {method.requiresApi && <p className="text-xs text-gray-500">Requires API setup</p>}
                   </div>
                   {selectedMethod === method.id && <Check className="w-5 h-5 text-blue-600" />}
@@ -137,8 +150,9 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
             </div>
           </div>
 
+          {/* Payment Details */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl border border-gray-200 p-8">
+            <div className="bg-white rounded-xl border border-gray-200 p-8 shadow-sm">
               <div className="flex items-start gap-3 mb-6">
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center text-blue-600">
                   {selectedMethodData?.icon}
@@ -149,19 +163,20 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
                 </div>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {selectedMethod !== 'credit-card' && (
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-yellow-900 mb-1">Use the main Billing screen to configure this provider.</p>
-                      <p className="text-yellow-700 text-sm">
-                        Apple Pay / Google Pay / PayPal and other providers need credentials entered in Billing.
-                      </p>
-                    </div>
+              {selectedMethodData?.requiresApi && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 flex items-start gap-3">
+                  <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-yellow-900 mb-1">API Configuration Required</p>
+                    <p className="text-yellow-700 text-sm">
+                      Enter credentials on the Billing screen for this provider. Use card entry here to add a default card.
+                    </p>
                   </div>
-                )}
+                </div>
+              )}
 
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Credit Card Form */}
                 {selectedMethod === 'credit-card' && (
                   <>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -237,9 +252,123 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
                         />
                       </div>
                     </div>
+
+                    <div>
+                      <label className="block text-gray-900 mb-2">Billing Address</label>
+                      <input
+                        type="text"
+                        value={form.address}
+                        onChange={(e) => setForm({ ...form, address: e.target.value })}
+                        placeholder="123 Main St"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 mb-3"
+                      />
+                      <div className="grid grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          value={form.city}
+                          onChange={(e) => setForm({ ...form, city: e.target.value })}
+                          placeholder="City"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        />
+                        <input
+                          type="text"
+                          value={form.state}
+                          onChange={(e) => setForm({ ...form, state: e.target.value })}
+                          placeholder="State"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        />
+                      </div>
+                      <input
+                        type="text"
+                        value={form.zip}
+                        onChange={(e) => setForm({ ...form, zip: e.target.value })}
+                        placeholder="ZIP Code"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 mt-3"
+                      />
+                    </div>
                   </>
                 )}
 
+                {/* API Configuration for provider (informational) */}
+                {selectedMethodData?.requiresApi && (
+                  <div className="border-t border-gray-200 pt-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-gray-900 flex items-center gap-2">
+                        <Settings className="w-5 h-5" />
+                        API Configuration
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => setShowApiConfig(!showApiConfig)}
+                        className="text-blue-600 hover:text-blue-700 text-sm"
+                      >
+                        {showApiConfig ? 'Hide' : 'Show'} Configuration
+                      </button>
+                    </div>
+                    {showApiConfig && (
+                      <div className="space-y-4 bg-gray-50 rounded-lg p-4 border border-gray-200">
+                        <div>
+                          <label className="block text-gray-900 mb-2 flex items-center gap-2">
+                            <Key className="w-4 h-4" />
+                            API Key / Publishable Key
+                          </label>
+                          <input
+                            type="password"
+                            placeholder={`Enter your ${selectedMethodData.name} API key`}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 font-mono text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-900 mb-2 flex items-center gap-2">
+                            <Key className="w-4 h-4" />
+                            Secret Key
+                          </label>
+                          <input
+                            type="password"
+                            placeholder={`Enter your ${selectedMethodData.name} secret key`}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 font-mono text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-900 mb-2 flex items-center gap-2">
+                            <LinkIcon className="w-4 h-4" />
+                            Webhook URL (optional)
+                          </label>
+                          <input
+                            type="url"
+                            placeholder="https://your-domain.com/webhooks"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 font-mono text-sm"
+                          />
+                          <p className="text-gray-500 text-xs mt-1">Configure webhooks to receive payment notifications</p>
+                        </div>
+                        <div className="flex gap-3">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="environment" value="test" defaultChecked className="w-4 h-4 text-blue-600" />
+                            <span className="text-gray-700">Sandbox</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="environment" value="live" className="w-4 h-4 text-blue-600" />
+                            <span className="text-gray-700">Production</span>
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Common Options */}
+                <div className="border-t border-gray-200 pt-6">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input type="checkbox" className="w-5 h-5 text-blue-600 rounded" defaultChecked />
+                    <span className="text-gray-900">Set as default payment method</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer mt-3">
+                    <input type="checkbox" className="w-5 h-5 text-blue-600 rounded" defaultChecked />
+                    <span className="text-gray-900">Save for future use</span>
+                  </label>
+                </div>
+
+                {/* Actions */}
                 <div className="flex gap-3 pt-4">
                   <button
                     type="button"
@@ -251,8 +380,8 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className={`flex-1 py-3 px-4 rounded-lg transition-colors text-white ${
-                      isSaving ? 'bg-blue-300' : 'bg-blue-600 hover:bg-blue-700'
+                    className={`flex-1 py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
+                      isSaving ? 'opacity-70 cursor-not-allowed' : ''
                     }`}
                   >
                     {isSaving ? 'Saving...' : 'Add Payment Method'}
@@ -261,6 +390,7 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
               </form>
             </div>
 
+            {/* Security Notice */}
             <div className="mt-6 bg-gray-100 rounded-lg p-4 flex items-start gap-3">
               <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
                 <Check className="w-5 h-5 text-white" />
