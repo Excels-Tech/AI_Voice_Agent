@@ -86,39 +86,41 @@ export default function Footer() {
         </div>
 
         {/* Divider */}
-        <div className="border-t border-[#1c2740] pt-10 space-y-8">
-          {/* Social Links */}
-          <div className="flex justify-start gap-4">
-            {[
-              { icon: <Twitter className="w-5 h-5" />, label: "Twitter" },
-              { icon: <Linkedin className="w-5 h-5" />, label: "LinkedIn" },
-              { icon: <Github className="w-5 h-5" />, label: "GitHub" },
-              { icon: <Facebook className="w-5 h-5" />, label: "Facebook" },
-              { icon: <Instagram className="w-5 h-5" />, label: "Instagram" },
-            ].map((item, idx) => (
-              <a
-                key={idx}
-                href="#"
-                aria-label={item.label}
-                className="w-11 h-11 rounded-full bg-[#1b2a45] text-slate-100 flex items-center justify-center hover:text-white hover:bg-[#27406a] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60"
-              >
-                {item.icon}
-                <span className="sr-only">{item.label}</span>
-              </a>
-            ))}
-          </div>
+        <div className="border-t border-[#1c2740] pt-10">
+          <div className="grid gap-6 lg:grid-cols-[auto_1fr_auto] lg:items-center">
+            {/* Social Links */}
+            <div className="flex justify-start gap-3">
+              {[
+                { icon: <Twitter className="w-5 h-5" />, label: "Twitter", bg: "bg-[#1c2d45]", hover: "hover:bg-[#1f9cf0]", text: "text-[#8ecdfc]" },
+                { icon: <Linkedin className="w-5 h-5" />, label: "LinkedIn", bg: "bg-[#1c2d45]", hover: "hover:bg-[#0a66c2]", text: "text-[#7fb5f5]" },
+                { icon: <Github className="w-5 h-5" />, label: "GitHub", bg: "bg-[#1c2d45]", hover: "hover:bg-[#2f2f2f]", text: "text-slate-100" },
+                { icon: <Facebook className="w-5 h-5" />, label: "Facebook", bg: "bg-[#1c2d45]", hover: "hover:bg-[#1877f2]", text: "text-[#9dbcf7]" },
+                { icon: <Instagram className="w-5 h-5" />, label: "Instagram", bg: "bg-[#1c2d45]", hover: "hover:bg-[#e1306c]", text: "text-[#f3aac9]" },
+              ].map((item, idx) => (
+                <a
+                  key={idx}
+                  href="#"
+                  aria-label={item.label}
+                  className={`w-11 h-11 rounded-md flex items-center justify-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/60 ${item.bg} ${item.hover} ${item.text}`}
+                >
+                  {item.icon}
+                  <span className="sr-only">{item.label}</span>
+                </a>
+              ))}
+            </div>
 
-          {/* Legal Links */}
-          <div className="flex flex-wrap items-center justify-center gap-8 text-sm text-slate-300">
-            <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-white transition-colors">Cookie Policy</a>
-            <a href="#" className="hover:text-white transition-colors">Security</a>
-          </div>
+            {/* Copyright */}
+            <div className="text-center">
+              <p className="text-slate-400 text-sm">© {currentYear} Voice AI Platform. All rights reserved.</p>
+            </div>
 
-          {/* Copyright */}
-          <div className="text-center">
-            <p className="text-slate-400 text-sm">© {currentYear} Voice AI Platform. All rights reserved.</p>
+            {/* Legal Links */}
+            <div className="flex flex-wrap items-center justify-center lg:justify-end gap-8 text-sm text-slate-300">
+              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
+              <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+              <a href="#" className="hover:text-white transition-colors">Cookie Policy</a>
+              <a href="#" className="hover:text-white transition-colors">Security</a>
+            </div>
           </div>
         </div>
       </div>
