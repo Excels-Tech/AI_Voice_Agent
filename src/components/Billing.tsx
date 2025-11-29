@@ -1,4 +1,5 @@
 import { useState } from "react";
+import "../../billing/src/index.css";
 import BillingPage from "../../billing/src/components/BillingPage";
 import AddPaymentMethod from "../../billing/src/components/AddPaymentMethod";
 
