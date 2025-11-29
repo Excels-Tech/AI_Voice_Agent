@@ -1059,6 +1059,7 @@
 
   .flex-wrap {
     flex-wrap: wrap;
+    align-items:stretch
   }
 
   .items-baseline {
