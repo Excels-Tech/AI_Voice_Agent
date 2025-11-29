@@ -7,9 +7,9 @@ export default function Footer() {
   return (
     <footer className="bg-[#0f1827] text-slate-200 mt-16 border-t border-[#1c2740]">
       <div className="max-w-7xl mx-auto px-6 md:px-10 lg:px-16 py-14">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
           {/* Company Info */}
-          <div className="lg:col-span-2 space-y-4">
+          <div className="space-y-4">
             <h3 className="text-white text-lg">Voice AI Platform</h3>
             <p className="text-slate-300 leading-relaxed">
               Build intelligent voice agents that sound human. Scale your customer service, sales, and support with AI-powered voice
@@ -75,39 +75,37 @@ export default function Footer() {
         </div>
 
         {/* Divider */}
-        <div className="border-t border-[#1c2740] pt-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            {/* Social Links */}
-            <div className="flex items-center gap-3">
-              {[
-                { icon: <Twitter className="w-5 h-5" />, label: "Twitter" },
-                { icon: <Linkedin className="w-5 h-5" />, label: "LinkedIn" },
-                { icon: <Github className="w-5 h-5" />, label: "GitHub" },
-                { icon: <Facebook className="w-5 h-5" />, label: "Facebook" },
-                { icon: <Instagram className="w-5 h-5" />, label: "Instagram" },
-              ].map((item, idx) => (
-                <a
-                  key={idx}
-                  href="#"
-                  aria-label={item.label}
-                  className="w-11 h-11 rounded-lg bg-[#111d30] text-slate-300 flex items-center justify-center hover:text-white hover:bg-[#1b2a45] transition-colors"
-                >
-                  {item.icon}
-                </a>
-              ))}
-            </div>
+        <div className="border-t border-[#1c2740] pt-10 space-y-8">
+          {/* Social Links */}
+          <div className="flex justify-start gap-4">
+            {[
+              { icon: <Twitter className="w-5 h-5" />, label: "Twitter" },
+              { icon: <Linkedin className="w-5 h-5" />, label: "LinkedIn" },
+              { icon: <Github className="w-5 h-5" />, label: "GitHub" },
+              { icon: <Facebook className="w-5 h-5" />, label: "Facebook" },
+              { icon: <Instagram className="w-5 h-5" />, label: "Instagram" },
+            ].map((item, idx) => (
+              <a
+                key={idx}
+                href="#"
+                aria-label={item.label}
+                className="w-11 h-11 rounded-lg bg-[#111d30] text-slate-300 flex items-center justify-center hover:text-white hover:bg-[#1b2a45] transition-colors"
+              >
+                {item.icon}
+              </a>
+            ))}
+          </div>
 
-            {/* Legal Links */}
-            <div className="flex flex-wrap items-center gap-6 text-sm text-slate-300">
-              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-              <a href="#" className="hover:text-white transition-colors">Cookie Policy</a>
-              <a href="#" className="hover:text-white transition-colors">Security</a>
-            </div>
+          {/* Legal Links */}
+          <div className="flex flex-wrap items-center gap-6 text-sm text-slate-300">
+            <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
+            <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
+            <a href="#" className="hover:text-white transition-colors">Cookie Policy</a>
+            <a href="#" className="hover:text-white transition-colors">Security</a>
           </div>
 
           {/* Copyright */}
-          <div className="mt-8 text-center">
+          <div className="text-left">
             <p className="text-slate-400 text-sm">© {currentYear} Voice AI Platform. All rights reserved.</p>
           </div>
         </div>
