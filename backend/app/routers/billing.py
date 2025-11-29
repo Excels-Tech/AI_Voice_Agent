@@ -1,13 +1,19 @@
 from typing import List, Optional, Tuple
-from datetime import datetime
+from datetime import datetime, timedelta
 import io
 import calendar
+import base64
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body
 from fastapi.responses import Response
+from jose import jwt
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
 from sqlmodel import Session, select
 from fpdf import FPDF
 
 from app.db import get_session
+from app.core.config import settings
 from app.core.deps import get_current_active_user
 from app.models.user import User
 from app.models.workspace import WorkspaceMembership, Workspace
@@ -23,6 +29,7 @@ from app.models.billing import (
     PaymentMethodRead,
     PaymentMethodUpdate,
 )
+from app.models.notification import Notification
 from pydantic import BaseModel
 
 
@@ -30,9 +37,80 @@ class PaymentProvidersPayload(BaseModel):
     paypal: Optional[dict] = None
     applepay: Optional[dict] = None
     gpay: Optional[dict] = None
-from app.models.notification import Notification
+
+
+class PaymentConfirmationPayload(BaseModel):
+    """Webhook payload to confirm a payment and notify the payer."""
+
+    provider: str
+    workspace_id: int
+    billing_email: str
+    billing_name: Optional[str] = None
+    invoice_id: Optional[int] = None
+    invoice_number: Optional[str] = None
+    billed_to_user_id: Optional[int] = None
+    amount_cents: Optional[int] = None
+    currency: str = "usd"
+    status: str = "paid"
+    description: Optional[str] = None
+
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+def _send_email_message(
+    to_email: str,
+    subject: str,
+    html_body: str,
+    text_body: str,
+    attachments: Optional[list[dict]] = None,
+) -> None:
+    """Send an email via SendGrid; log and return if not configured."""
+    if not to_email:
+        logger.warning("Email send skipped: missing recipient")
+        return
+    if not settings.SENDGRID_API_KEY:
+        logger.info("SendGrid API key not configured; skipping email send for %s", to_email)
+        return
+
+    message = Mail(
+        from_email=settings.FROM_EMAIL,
+        to_emails=to_email,
+        subject=subject,
+        html_content=html_body,
+        plain_text_content=text_body,
+    )
+
+    if attachments:
+        for att in attachments:
+            message.add_attachment(
+                Attachment(
+                    file_content=FileContent(base64.b64encode(att["content"]).decode("utf-8")),
+                    file_type=FileType(att.get("content_type", "application/pdf")),
+                    file_name=FileName(att.get("filename", "attachment.pdf")),
+                    disposition=Disposition("attachment"),
+                )
+            )
+
+    try:
+        sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
+        sg.send(message)
+    except Exception as exc:  # pragma: no cover - best effort logging
+        logger.error("Failed to send email to %s: %s", to_email, exc)
+
+
+def _create_payment_confirmation_token(invoice_id: int, workspace_id: int, email: str) -> str:
+    """Create a short-lived token to confirm payment and trigger receipt delivery."""
+    payload = {
+        "invoice_id": invoice_id,
+        "workspace_id": workspace_id,
+        "email": email,
+        "type": "payment_confirm",
+        "exp": datetime.utcnow() + timedelta(hours=24),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
 
 # Shared plan catalog served to the UI
 PLAN_CATALOG = {
@@ -112,6 +190,18 @@ def _get_workspace(session: Session, workspace_id: int) -> Workspace:
             detail="Workspace not found",
     )
     return workspace
+
+
+def _get_workspace_owner_user_id(session: Session, workspace_id: int) -> Optional[int]:
+    """Return the owner user id if available for fallback billing contacts."""
+    owner = session.exec(
+        select(WorkspaceMembership).where(
+            WorkspaceMembership.workspace_id == workspace_id,
+            WorkspaceMembership.role == "owner",
+            WorkspaceMembership.status == "active",
+        )
+    ).first()
+    return owner.user_id if owner else None
 
 
 def _plan_amount_cents(plan: str, billing_cycle: str = "monthly") -> int:
@@ -327,6 +417,67 @@ def _render_invoice_pdf(invoice: Invoice, workspace: Workspace, billed_user: Opt
     return pdf_bytes
 
 
+def _format_currency(amount_cents: int, currency: str = "usd") -> str:
+    symbol = "$" if currency.lower() == "usd" else ""
+    return f"{symbol}{amount_cents / 100:.2f} {currency.upper()}"
+
+
+def _send_payment_confirmation_email(
+    invoice: Invoice,
+    workspace: Workspace,
+    payer_email: str,
+    payer_name: Optional[str],
+    confirmation_url: str,
+) -> None:
+    amount_text = _format_currency(invoice.amount_cents, invoice.currency)
+    subject = f"Confirm your payment for {workspace.name}"
+    html_body = f"""
+      <p>Hi {payer_name or "there"},</p>
+      <p>We received a payment event for invoice <strong>{invoice.invoice_number}</strong> on workspace <strong>{workspace.name}</strong>.</p>
+      <p>Amount: <strong>{amount_text}</strong></p>
+      <p>Click the button below to confirm and receive your receipt.</p>
+      <p style="text-align:center;margin:24px 0;">
+        <a href="{confirmation_url}" style="background:#2563eb;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;">
+          Confirm payment &amp; get receipt
+        </a>
+      </p>
+      <p>If the button does not work, copy and paste this link into your browser:</p>
+      <p style="word-break:break-all;">{confirmation_url}</p>
+    """
+    text_body = (
+        f"We received a payment event for invoice {invoice.invoice_number} on {workspace.name}. "
+        f"Amount: {amount_text}. Confirm here: {confirmation_url}"
+    )
+    _send_email_message(payer_email, subject, html_body, text_body)
+
+
+def _send_receipt_email(
+    invoice: Invoice,
+    workspace: Workspace,
+    payer_email: str,
+    payer_name: Optional[str],
+    billed_user: Optional[User],
+    pdf_bytes: bytes,
+) -> None:
+    amount_text = _format_currency(invoice.amount_cents, invoice.currency)
+    subject = f"Receipt for {workspace.name} — {invoice.invoice_number}"
+    html_body = f"""
+      <p>Hi {payer_name or "there"},</p>
+      <p>Your payment for invoice <strong>{invoice.invoice_number}</strong> has been confirmed.</p>
+      <p>Amount: <strong>{amount_text}</strong></p>
+      <p>Workspace: <strong>{workspace.name}</strong></p>
+      <p>We've attached your receipt. If you have questions, reply to this email.</p>
+    """
+    text_body = (
+        f"Payment confirmed for invoice {invoice.invoice_number} on {workspace.name}. "
+        f"Amount: {amount_text}. Receipt attached."
+    )
+    attachments = [
+        {"filename": f"{invoice.invoice_number}.pdf", "content_type": "application/pdf", "content": pdf_bytes}
+    ]
+    _send_email_message(payer_email, subject, html_body, text_body, attachments=attachments)
+
+
 @router.get("/payment-providers")
 async def get_payment_providers(
     workspace_id: int = Query(...),
@@ -369,6 +520,70 @@ async def upsert_payment_providers(
     session.commit()
     session.refresh(workspace)
     return workspace.settings.get("payment_providers", {})
+
+
+@router.post("/payment/webhook", status_code=status.HTTP_202_ACCEPTED)
+async def payment_confirmation_webhook(
+    payload: PaymentConfirmationPayload,
+    session: Session = Depends(get_session),
+):
+    """
+    Handle payment confirmation webhooks (Stripe/Apple Pay/Google Pay/etc).
+    Creates or updates an invoice, then emails the payer with a confirmation link.
+    """
+    workspace = _get_workspace(session, payload.workspace_id)
+    invoice: Optional[Invoice] = None
+
+    if payload.invoice_id:
+        invoice = session.get(Invoice, payload.invoice_id)
+
+    if invoice:
+        invoice.status = payload.status or invoice.status
+        if payload.amount_cents:
+            invoice.amount_cents = payload.amount_cents
+        if payload.currency:
+            invoice.currency = payload.currency
+        if payload.description:
+            invoice.description = payload.description
+        if payload.invoice_number:
+            invoice.invoice_number = payload.invoice_number
+        invoice.pdf_url = invoice.pdf_url or f"/api/billing/invoices/{invoice.id}/download"
+        session.add(invoice)
+        session.commit()
+    else:
+        billed_user_id = payload.billed_to_user_id or _get_workspace_owner_user_id(session, payload.workspace_id)
+        period_start, period_end = _current_period()
+        invoice = Invoice(
+            workspace_id=payload.workspace_id,
+            billed_to_user_id=billed_user_id,
+            invoice_number=payload.invoice_number or f"INV-{payload.workspace_id}-{int(datetime.utcnow().timestamp())}",
+            period_start=period_start,
+            period_end=period_end,
+            amount_cents=payload.amount_cents or _plan_amount_cents(workspace.plan),
+            currency=payload.currency or "usd",
+            status=payload.status or "paid",
+            description=payload.description or f"{payload.provider.title()} payment",
+            pdf_url=None,
+        )
+        session.add(invoice)
+        session.commit()
+        session.refresh(invoice)
+        invoice.pdf_url = f"/api/billing/invoices/{invoice.id}/download"
+        session.add(invoice)
+        session.commit()
+
+    token = _create_payment_confirmation_token(invoice.id, payload.workspace_id, payload.billing_email)
+    confirmation_url = f"{settings.FRONTEND_URL.rstrip('/')}/api/billing/payment/confirm?token={token}"
+
+    _send_payment_confirmation_email(
+        invoice=invoice,
+        workspace=workspace,
+        payer_email=payload.billing_email,
+        payer_name=payload.billing_name,
+        confirmation_url=confirmation_url,
+    )
+
+    return {"message": "Payment received. Confirmation email sent.", "invoice_id": invoice.id}
 
 
 @router.get("/subscription")
@@ -726,6 +941,50 @@ async def download_invoice(
     pdf_bytes = _render_invoice_pdf(invoice, workspace, billed_user)
     headers = {"Content-Disposition": f'attachment; filename="{invoice.invoice_number}.pdf"'}
     return Response(content=pdf_bytes, media_type="application/pdf", headers=headers)
+
+
+@router.get("/payment/confirm")
+async def confirm_payment_receipt(token: str, session: Session = Depends(get_session)):
+    """When a payer clicks the email link, send them the PDF receipt."""
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired confirmation token",
+        )
+
+    if payload.get("type") != "payment_confirm":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid confirmation token",
+        )
+
+    invoice_id = payload.get("invoice_id")
+    workspace_id = payload.get("workspace_id")
+    payer_email = payload.get("email")
+
+    invoice = session.get(Invoice, invoice_id)
+    if not invoice or invoice.workspace_id != workspace_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invoice not found for confirmation",
+        )
+
+    workspace = _get_workspace(session, workspace_id)
+    billed_user = session.get(User, invoice.billed_to_user_id) if invoice.billed_to_user_id else None
+    pdf_bytes = _render_invoice_pdf(invoice, workspace, billed_user)
+
+    _send_receipt_email(
+        invoice=invoice,
+        workspace=workspace,
+        payer_email=payer_email,
+        payer_name=billed_user.name if billed_user else None,
+        billed_user=billed_user,
+        pdf_bytes=pdf_bytes,
+    )
+
+    return {"message": "Receipt sent to payer", "invoice_id": invoice.id}
 
 
 @router.get("/payment-method", response_model=Optional[PaymentMethodRead])

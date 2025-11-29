@@ -33,7 +33,8 @@
     ]
   },
   "include": [
-    "src"
+    "src",
+    "billing/src"
   ],
   "references": [
     {
