@@ -1143,7 +1143,7 @@ export default function BillingPage({ onNavigateToAddPayment, refreshSignal = 0 
 
           {/* Invoice Detail Modal */}
           {selectedInvoice && (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedInvoice(null)}>
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedInvoice(null)}>
               <div className="bg-white rounded-xl p-8 max-w-2xl w-full" onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-start justify-between mb-6">
                   <div>
@@ -1434,7 +1434,7 @@ export default function BillingPage({ onNavigateToAddPayment, refreshSignal = 0 
 
       {/* Edit Billing Information Modal */}
       {isEditingBillingInfo && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
               <h3 className="text-gray-900">Edit Billing Information</h3>
