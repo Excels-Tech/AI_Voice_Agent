@@ -922,7 +922,7 @@ export default function BillingPage({ onNavigateToAddPayment, refreshSignal = 0 
 
           {/* Billing History */}
           <div>
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+            <div className="flex flex-col gap-3 mb-6">
               <div>
                 <h3 className="text-gray-900 mb-1 text-lg">Billing History</h3>
                 <p className="text-gray-600">
@@ -930,26 +930,26 @@ export default function BillingPage({ onNavigateToAddPayment, refreshSignal = 0 
                 </p>
               </div>
               
-              <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between w-full">
                 {/* Search */}
-                <div className="relative">
+                <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Search invoices..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 w-full sm:w-72"
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 w-full"
                   />
                 </div>
 
                 {/* Status Filter */}
-                <div className="relative">
+                <div className="relative w-full sm:w-40">
                   <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value as any)}
-                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 appearance-none w-full sm:w-40"
+                    className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 appearance-none w-full"
                   >
                     <option value="all">All Status</option>
                     <option value="paid">Paid</option>
@@ -1619,3 +1619,5 @@ export default function BillingPage({ onNavigateToAddPayment, refreshSignal = 0 
     </div>
   );
 }
+
+
