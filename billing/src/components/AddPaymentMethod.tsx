@@ -33,12 +33,10 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
   const [isSaving, setIsSaving] = useState(false);
   const [showApiConfig, setShowApiConfig] = useState(false);
   const [form, setForm] = useState({
-    brand: 'Visa',
     cardNumber: '',
-    expMonth: '',
-    expYear: '',
+    expiry: '',
+    cvc: '',
     cardholderName: '',
-    billingEmail: '',
     address: '',
     city: '',
     state: '',
@@ -87,15 +85,27 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
       toast.error('Enter a valid card number (need last 4 digits).');
       return;
     }
+
+    let expMonth = 0;
+    let expYear = 0;
+    if (form.expiry.includes('/')) {
+      const [m, y] = form.expiry.split('/');
+      expMonth = parseInt(m || '0', 10);
+      const yearRaw = (y || '').trim();
+      expYear = yearRaw.length === 2 ? 2000 + parseInt(yearRaw, 10) : parseInt(yearRaw || '0', 10);
+    }
+    if (expMonth < 1 || expMonth > 12 || expYear < new Date().getFullYear()) {
+      toast.error('Enter a valid expiry (MM/YY).');
+      return;
+    }
     setIsSaving(true);
     try {
       await upsertPaymentMethod(workspaceId, {
-        brand: form.brand,
+        brand: 'Card',
         last4: last4Raw,
-        exp_month: parseInt(form.expMonth || '0'),
-        exp_year: parseInt(form.expYear || '0'),
+        exp_month: expMonth,
+        exp_year: expYear,
         cardholder_name: form.cardholderName,
-        billing_email: form.billingEmail,
         provider: 'stripe',
         is_default: true,
       });
@@ -179,27 +189,37 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
                 {/* Credit Card Form */}
                 {selectedMethod === 'credit-card' && (
                   <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-gray-900 mb-2">Card Number</label>
+                      <input
+                        type="text"
+                        value={form.cardNumber}
+                        onChange={(e) => setForm({ ...form, cardNumber: e.target.value })}
+                        placeholder="1234 5678 9012 3456"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-gray-900 mb-2">Brand</label>
-                        <select
-                          value={form.brand}
-                          onChange={(e) => setForm({ ...form, brand: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                        >
-                          <option value="Visa">Visa</option>
-                          <option value="Mastercard">Mastercard</option>
-                          <option value="Amex">Amex</option>
-                          <option value="Discover">Discover</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-gray-900 mb-2">Cardholder Name</label>
+                        <label className="block text-gray-900 mb-2">Expiry Date</label>
                         <input
                           type="text"
-                          value={form.cardholderName}
-                          onChange={(e) => setForm({ ...form, cardholderName: e.target.value })}
-                          placeholder="John Doe"
+                          value={form.expiry}
+                          onChange={(e) => setForm({ ...form, expiry: e.target.value })}
+                          placeholder="MM/YY"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-900 mb-2">CVC</label>
+                        <input
+                          type="text"
+                          value={form.cvc}
+                          onChange={(e) => setForm({ ...form, cvc: e.target.value })}
+                          placeholder="123"
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                           required
                         />
@@ -207,50 +227,15 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
                     </div>
 
                     <div>
-                      <label className="block text-gray-900 mb-2">Card Number</label>
+                      <label className="block text-gray-900 mb-2">Cardholder Name</label>
                       <input
                         type="text"
-                        value={form.cardNumber}
-                        onChange={(e) => setForm({ ...form, cardNumber: e.target.value })}
-                        placeholder="4242 4242 4242 4242"
+                        value={form.cardholderName}
+                        onChange={(e) => setForm({ ...form, cardholderName: e.target.value })}
+                        placeholder="John Doe"
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                         required
                       />
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-gray-900 mb-2">Expiry Month</label>
-                        <input
-                          type="text"
-                          value={form.expMonth}
-                          onChange={(e) => setForm({ ...form, expMonth: e.target.value })}
-                          placeholder="MM"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-900 mb-2">Expiry Year</label>
-                        <input
-                          type="text"
-                          value={form.expYear}
-                          onChange={(e) => setForm({ ...form, expYear: e.target.value })}
-                          placeholder="YYYY"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                          required
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-gray-900 mb-2">Billing Email</label>
-                        <input
-                          type="email"
-                          value={form.billingEmail}
-                          onChange={(e) => setForm({ ...form, billingEmail: e.target.value })}
-                          placeholder="billing@email.com"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                        />
-                      </div>
                     </div>
 
                     <div>
@@ -355,18 +340,6 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
                     )}
                   </div>
                 )}
-
-                {/* Common Options */}
-                <div className="border-t border-gray-200 pt-6">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input type="checkbox" className="w-5 h-5 text-blue-600 rounded" defaultChecked />
-                    <span className="text-gray-900">Set as default payment method</span>
-                  </label>
-                  <label className="flex items-center gap-3 cursor-pointer mt-3">
-                    <input type="checkbox" className="w-5 h-5 text-blue-600 rounded" defaultChecked />
-                    <span className="text-gray-900">Save for future use</span>
-                  </label>
-                </div>
 
                 {/* Actions */}
                 <div className="flex gap-3 pt-4">
