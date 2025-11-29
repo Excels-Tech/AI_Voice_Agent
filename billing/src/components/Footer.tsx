@@ -100,7 +100,7 @@ export default function Footer() {
           </div>
 
           {/* Legal Links */}
-          <div className="flex flex-wrap items-center gap-6 text-sm text-slate-300">
+          <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-300">
             <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
             <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
             <a href="#" className="hover:text-white transition-colors">Cookie Policy</a>
@@ -108,7 +108,7 @@ export default function Footer() {
           </div>
 
           {/* Copyright */}
-          <div className="text-left">
+          <div className="text-center">
             <p className="text-slate-400 text-sm">© {currentYear} Voice AI Platform. All rights reserved.</p>
           </div>
         </div>
