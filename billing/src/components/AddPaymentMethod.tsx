@@ -41,6 +41,10 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
     city: '',
     state: '',
     zip: '',
+    accountHolderName: '',
+    routingNumber: '',
+    accountNumber: '',
+    accountType: '',
   });
 
   useEffect(() => {
@@ -76,6 +80,46 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
       toast.error('No workspace found.');
       return;
     }
+
+    // Bank account flow
+    if (selectedMethod === 'bank-account') {
+      const routing = form.routingNumber.replace(/\D/g, '');
+      const account = form.accountNumber.replace(/\D/g, '');
+      if (!form.accountHolderName.trim()) {
+        toast.error('Enter account holder name.');
+        return;
+      }
+      if (routing.length !== 9) {
+        toast.error('Enter a valid 9-digit routing number.');
+        return;
+      }
+      if (account.length < 4) {
+        toast.error('Enter a valid account number (need at least last 4 digits).');
+        return;
+      }
+      const last4 = account.slice(-4);
+      setIsSaving(true);
+      try {
+        await upsertPaymentMethod(workspaceId, {
+          brand: form.accountType ? `${form.accountType} Account` : 'Bank Account',
+          last4,
+          exp_month: 0,
+          exp_year: 0,
+          cardholder_name: form.accountHolderName,
+          provider: 'ach',
+          is_default: true,
+        });
+        toast.success('Bank account saved');
+        onAdd();
+      } catch (err: any) {
+        toast.error(err?.message || 'Failed to save bank account');
+      } finally {
+        setIsSaving(false);
+      }
+      return;
+    }
+
+    // Card flow
     if (selectedMethod !== 'credit-card') {
       toast.info('Use the main Billing screen to configure this provider.');
       return;
@@ -270,6 +314,62 @@ export default function AddPaymentMethod({ onBack, onAdd }: AddPaymentMethodProp
                         placeholder="ZIP Code"
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600 mt-3"
                       />
+                    </div>
+                  </>
+                )}
+
+                {/* Bank Account Form */}
+                {selectedMethod === 'bank-account' && (
+                  <>
+                    <div>
+                      <label className="block text-gray-900 mb-2">Account Holder Name</label>
+                      <input
+                        type="text"
+                        value={form.accountHolderName}
+                        onChange={(e) => setForm({ ...form, accountHolderName: e.target.value })}
+                        placeholder="John Doe"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        required
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-gray-900 mb-2">Routing Number</label>
+                        <input
+                          type="text"
+                          value={form.routingNumber}
+                          onChange={(e) => setForm({ ...form, routingNumber: e.target.value })}
+                          placeholder="110000000"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-gray-900 mb-2">Account Number</label>
+                        <input
+                          type="text"
+                          value={form.accountNumber}
+                          onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
+                          placeholder="000123456789"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-900 mb-2">Account Type</label>
+                      <select
+                        value={form.accountType}
+                        onChange={(e) => setForm({ ...form, accountType: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                        required
+                      >
+                        <option value="">Select account type</option>
+                        <option value="Checking">Checking</option>
+                        <option value="Savings">Savings</option>
+                      </select>
                     </div>
                   </>
                 )}
