@@ -117,7 +117,7 @@ export function Billing() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [isSavingPayment, setIsSavingPayment] = useState(false);
-  const [selectedPaymentType, setSelectedPaymentType] = useState<"card" | "paypal">("card");
+  const [selectedPaymentType, setSelectedPaymentType] = useState<"card" | "paypal" | "applepay" | "gpay">("card");
   const [paymentForm, setPaymentForm] = useState({
     brand: "Visa",
     cardNumber: "",
@@ -171,16 +171,16 @@ export function Billing() {
       label: "Apple Pay",
       description: "Fast checkout on supported devices",
       icons: ["/apple-pay.svg"],
-      cta: "Coming soon",
-      disabled: true,
+      cta: "Set up Apple Pay",
+      disabled: false,
     },
     {
       id: "gpay",
       label: "Google Pay",
       description: "Tap to pay with Google",
       icons: ["/google-pay.svg"],
-      cta: "Coming soon",
-      disabled: true,
+      cta: "Set up Google Pay",
+      disabled: false,
     },
   ];
   const COUNTRIES = [
@@ -248,7 +248,13 @@ export function Billing() {
   });
   const [providerSaving, setProviderSaving] = useState(false);
   const toggleMethod = (id: string) =>
-    setExpandedMethod((prev) => (prev === id ? "" : id));
+    setExpandedMethod((prev) => {
+      const next = prev === id ? "" : id;
+      if (next && (id === "card" || id === "paypal" || id === "applepay" || id === "gpay")) {
+        setSelectedPaymentType(id as "card" | "paypal" | "applepay" | "gpay");
+      }
+      return next;
+    });
 
   const hydrateFromCache = () => {
     try {
@@ -502,7 +508,7 @@ export function Billing() {
     }
   };
 
-  const handleUpdatePaymentMethod = () => {
+  const handleUpdatePaymentMethod = (methodId: "card" | "paypal" | "applepay" | "gpay" = "card") => {
     if (paymentMethod) {
       setPaymentForm({
         brand: paymentMethod.brand,
@@ -524,42 +530,80 @@ export function Billing() {
         billingEmail: "",
       });
     }
-    setSelectedPaymentType("card");
+    setSelectedPaymentType(methodId);
+    setExpandedMethod(methodId);
     setShowPaymentDialog(true);
   };
 
   const handleSavePaymentMethod = async () => {
     if (!workspaceId) return;
-    if (selectedPaymentType !== "card") {
-      toast.error("Only card payments are supported right now. Please select a card.");
+    if (selectedPaymentType === "card") {
+      setIsSavingPayment(true);
+      try {
+        let last4 = paymentForm.cardNumber.slice(-4);
+        if (paymentForm.cardNumber.includes("*")) {
+          last4 = paymentMethod?.last4 || "4242";
+        } else if (!last4) {
+          last4 = "4242";
+        }
+
+        const updated = await upsertPaymentMethod(workspaceId, {
+          brand: paymentForm.brand,
+          last4,
+          exp_month: parseInt(paymentForm.expMonth),
+          exp_year: parseInt(paymentForm.expYear),
+          cardholder_name: paymentForm.cardholderName,
+          billing_email: paymentForm.billingEmail,
+          provider: "stripe",
+          is_default: true,
+        });
+
+        setPaymentMethod(updated);
+        toast.success("Payment method updated");
+        setShowPaymentDialog(false);
+      } catch (err: any) {
+        console.error("Failed to update payment method:", err);
+        toast.error(err?.message || "Failed to update payment method");
+      } finally {
+        setIsSavingPayment(false);
+      }
       return;
     }
+
+    if (selectedPaymentType === "paypal" && (!paypalConfig.clientId || !paypalConfig.clientSecret)) {
+      toast.error("Add your PayPal client ID and secret first.");
+      return;
+    }
+    if (selectedPaymentType === "applepay" && (!applePayConfig.merchantId || !applePayConfig.domain)) {
+      toast.error("Add your Apple Pay merchant ID and domain.");
+      return;
+    }
+    if (
+      selectedPaymentType === "gpay" &&
+      (!gpayConfig.merchantId && !gpayConfig.gatewayMerchantId)
+    ) {
+      toast.error("Add a Google Pay merchant ID or gateway merchant ID.");
+      return;
+    }
+
     setIsSavingPayment(true);
     try {
-      let last4 = paymentForm.cardNumber.slice(-4);
-      if (paymentForm.cardNumber.includes("*")) {
-        last4 = paymentMethod?.last4 || "4242";
-      } else if (!last4) {
-        last4 = "4242";
-      }
-
-      const updated = await upsertPaymentMethod(workspaceId, {
-        brand: paymentForm.brand,
-        last4,
-        exp_month: parseInt(paymentForm.expMonth),
-        exp_year: parseInt(paymentForm.expYear),
-        cardholder_name: paymentForm.cardholderName,
-        billing_email: paymentForm.billingEmail,
-        provider: "stripe",
-        is_default: true,
+      await upsertPaymentProviders(workspaceId, {
+        paypal: paypalConfig,
+        applepay: applePayConfig,
+        gpay: gpayConfig,
       });
 
-      setPaymentMethod(updated);
-      toast.success("Payment method updated");
+      const label =
+        selectedPaymentType === "paypal"
+          ? "PayPal"
+          : selectedPaymentType === "applepay"
+          ? "Apple Pay"
+          : "Google Pay";
+      toast.success(`${label} saved`);
       setShowPaymentDialog(false);
     } catch (err: any) {
-      console.error("Failed to update payment method:", err);
-      toast.error(err?.message || "Failed to update payment method");
+      toast.error(err?.message || "Failed to save provider credentials");
     } finally {
       setIsSavingPayment(false);
     }
@@ -986,13 +1030,52 @@ export function Billing() {
                                 className="bg-white text-slate-900"
                               />
                               <Input
+                                value={applePayConfig.merchantName}
+                                onChange={(e) => setApplePayConfig((p) => ({ ...p, merchantName: e.target.value }))}
+                                placeholder="Merchant display name (shown to buyers)"
+                                className="bg-white text-slate-900"
+                              />
+                              <Input
                                 value={applePayConfig.domain}
                                 onChange={(e) => setApplePayConfig((p) => ({ ...p, domain: e.target.value }))}
                                 placeholder="Merchant domain (e.g., pay.example.com)"
                                 className="bg-white text-slate-900"
                               />
-                              <Button size="sm" variant="outline" className="w-full bg-blue-50 text-blue-800 border-blue-200">
-                                Save to backend (wire to provider)
+                              <Input
+                                value={applePayConfig.merchantCertificate}
+                                onChange={(e) =>
+                                  setApplePayConfig((p) => ({ ...p, merchantCertificate: e.target.value }))
+                                }
+                                placeholder="Merchant certificate (PEM) or vault ID"
+                                className="bg-white text-slate-900"
+                              />
+                              <Input
+                                type="password"
+                                value={applePayConfig.merchantPrivateKey}
+                                onChange={(e) =>
+                                  setApplePayConfig((p) => ({ ...p, merchantPrivateKey: e.target.value }))
+                                }
+                                placeholder="Merchant private key (keep secure)"
+                                className="bg-white text-slate-900"
+                              />
+                              <select
+                                value={applePayConfig.environment}
+                                onChange={(e) =>
+                                  setApplePayConfig((p) => ({ ...p, environment: e.target.value as "sandbox" | "live" }))
+                                }
+                                className="border rounded-md px-2 py-1 text-sm text-slate-900 bg-white"
+                              >
+                                <option value="sandbox">Sandbox</option>
+                                <option value="live">Live</option>
+                              </select>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full bg-blue-50 text-blue-800 border-blue-200"
+                                onClick={() => handleSaveProvider("applepay")}
+                                disabled={providerSaving}
+                              >
+                                {providerSaving ? "Saving..." : "Save to backend"}
                               </Button>
                             </>
                           )}
@@ -1006,13 +1089,38 @@ export function Billing() {
                                 className="bg-white text-slate-900"
                               />
                               <Input
+                                value={gpayConfig.merchantName}
+                                onChange={(e) => setGpayConfig((p) => ({ ...p, merchantName: e.target.value }))}
+                                placeholder="Merchant display name"
+                                className="bg-white text-slate-900"
+                              />
+                              <Input
                                 value={gpayConfig.gatewayMerchantId}
                                 onChange={(e) => setGpayConfig((p) => ({ ...p, gatewayMerchantId: e.target.value }))}
                                 placeholder="Gateway merchant ID (Stripe/Adyen)"
                                 className="bg-white text-slate-900"
                               />
-                              <Button size="sm" variant="outline" className="w-full bg-blue-50 text-blue-800 border-blue-200">
-                                Save to backend (wire to provider)
+                              <select
+                                value={gpayConfig.environment}
+                                onChange={(e) =>
+                                  setGpayConfig((p) => ({
+                                    ...p,
+                                    environment: e.target.value as "TEST" | "PRODUCTION",
+                                  }))
+                                }
+                                className="border rounded-md px-2 py-1 text-sm text-slate-900 bg-white"
+                              >
+                                <option value="TEST">Test</option>
+                                <option value="PRODUCTION">Production</option>
+                              </select>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full bg-blue-50 text-blue-800 border-blue-200"
+                                onClick={() => handleSaveProvider("gpay")}
+                                disabled={providerSaving}
+                              >
+                                {providerSaving ? "Saving..." : "Save to backend"}
                               </Button>
                             </>
                           )}
@@ -1048,10 +1156,14 @@ export function Billing() {
                 </Button>
                 <Button
                   onClick={handleSavePaymentMethod}
-                  disabled={isSavingPayment}
+                  disabled={isSavingPayment || providerSaving}
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
-                  {isSavingPayment ? "Saving..." : "Save payment method"}
+                  {isSavingPayment || providerSaving
+                    ? "Saving..."
+                    : selectedPaymentType === "card"
+                    ? "Save payment method"
+                    : "Save and enable"}
                 </Button>
               </div>
             </div>
@@ -1171,7 +1283,7 @@ export function Billing() {
         <CardHeader className="border-b">
           <div className="flex items-center justify-between">
             <CardTitle>Payment Methods</CardTitle>
-            <Button variant="outline" onClick={handleUpdatePaymentMethod}>
+            <Button variant="outline" onClick={() => handleUpdatePaymentMethod("card")}>
               Change payment
             </Button>
           </div>
@@ -1191,7 +1303,7 @@ export function Billing() {
                   : "Add a card to keep your subscription active"}
               </p>
             </div>
-            <Button size="sm" variant="outline" onClick={handleUpdatePaymentMethod}>
+            <Button size="sm" variant="outline" onClick={() => handleUpdatePaymentMethod("card")}>
               Update
             </Button>
           </div>
@@ -1232,7 +1344,7 @@ export function Billing() {
                   }
                   onClick={() => {
                     if (method.disabled) return;
-                    handleUpdatePaymentMethod();
+                    handleUpdatePaymentMethod(method.id as "card" | "paypal" | "applepay" | "gpay");
                   }}
                 >
                   {method.cta}
@@ -2108,10 +2220,14 @@ export function Billing() {
               </Button>
               <Button
                 onClick={handleSavePaymentMethod}
-                disabled={isSavingPayment}
+                disabled={isSavingPayment || providerSaving}
                 className="bg-blue-600 hover:bg-blue-700 text-white"
               >
-                {isSavingPayment ? "Saving..." : "Add"}
+                {isSavingPayment || providerSaving
+                  ? "Saving..."
+                  : selectedPaymentType === "card"
+                  ? "Save payment method"
+                  : "Save and enable"}
               </Button>
             </div>
           </div>
