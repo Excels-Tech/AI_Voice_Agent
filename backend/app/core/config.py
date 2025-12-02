@@ -72,6 +72,13 @@ class Settings(BaseSettings):
     STRIPE_API_KEY: str = ""
     STRIPE_WEBHOOK_SECRET: str = ""
     STRIPE_PUBLISHABLE_KEY: str = ""
+
+    # LiveKit
+    LIVEKIT_URL: str = ""
+    LIVEKIT_API_KEY: str = ""
+    LIVEKIT_API_SECRET: str = ""
+    LIVEKIT_WEBHOOK_SECRET: str = ""
+    LIVEKIT_EGRESS_WEBHOOK: str = ""
     
     # Frontend URL
     FRONTEND_URL: str = "http://localhost:3000"

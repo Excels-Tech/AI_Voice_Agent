@@ -1,9 +1,26 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "./ui/card";
 import { Badge } from "./ui/badge";
-import { X, Phone, Mic, MicOff, Volume2, VolumeX, PhoneOff, Activity } from "lucide-react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Separator } from "./ui/separator";
+import {
+  X,
+  PhoneOff,
+  PhoneCall,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  Keypad,
+  Lightbulb,
+  Phone,
+  CheckCircle2,
+  Loader2,
+  Delete,
+} from "lucide-react";
 import { toast } from "sonner";
-import { useLiveCallSession } from "../hooks/useLiveCallSession";
+import { useLiveCallSession, TranscriptEntry } from "../hooks/useLiveCallSession";
 
 interface TestCallModalProps {
   agent: {
@@ -16,15 +33,34 @@ interface TestCallModalProps {
   onClose: () => void;
 }
 
+const KEYPAD = [
+  { primary: "1", secondary: "" },
+  { primary: "2", secondary: "ABC" },
+  { primary: "3", secondary: "DEF" },
+  { primary: "4", secondary: "GHI" },
+  { primary: "5", secondary: "JKL" },
+  { primary: "6", secondary: "MNO" },
+  { primary: "7", secondary: "PQRS" },
+  { primary: "8", secondary: "TUV" },
+  { primary: "9", secondary: "WXYZ" },
+  { primary: "*", secondary: "" },
+  { primary: "0", secondary: "+" },
+  { primary: "#", secondary: "" },
+];
+
 export function TestCallModal({ agent, onClose }: TestCallModalProps) {
+  const [phoneNumber, setPhoneNumber] = useState<string>(agent.phoneNumber || "");
+  const [showKeypad, setShowKeypad] = useState(false);
   const {
     isCallActive,
+    isStarting,
     callDuration,
     status,
     microphoneStatus,
     isRecordingUtterance,
     isMicrophoneMuted,
     isAssistantAudioMuted,
+    transcript,
     error,
     startCall,
     stopCall,
@@ -32,10 +68,16 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
     stopUtteranceRecording,
     toggleMicrophoneMute,
     toggleAssistantAudioMute,
+    sendUserText,
   } = useLiveCallSession(agent.id);
 
-  const isListening =
-    isRecordingUtterance && !isMicrophoneMuted && microphoneStatus === "ready";
+  const isListening = isRecordingUtterance && !isMicrophoneMuted && microphoneStatus === "ready";
+  const isConnected = status === "connected" || isCallActive;
+
+  const latestAssistantLine = useMemo<TranscriptEntry | null>(() => {
+    const reversed = [...transcript].reverse();
+    return reversed.find((entry) => entry.role === "assistant") || null;
+  }, [transcript]);
 
   useEffect(() => {
     if (error) {
@@ -43,33 +85,44 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
     }
   }, [error]);
 
-  // Auto-start call on mount
-  useEffect(() => {
-    const initCall = async () => {
-      if (!agent.id) return;
-      try {
-        await startCall({
-          phoneNumber: agent.phoneNumber || "web-demo",
-          callerName: "Demo User",
-          language: agent.language,
-        });
-      } catch (err) {
-        console.error("Failed to auto-start call", err);
-      }
-    };
-    initCall();
-  }, [agent.id, agent.phoneNumber, agent.language, startCall]);
-
   useEffect(() => {
     if (isCallActive && !isRecordingUtterance && microphoneStatus === "ready") {
       startUtteranceRecording();
     }
   }, [isCallActive, isRecordingUtterance, microphoneStatus, startUtteranceRecording]);
 
+  const handleStart = async () => {
+    if (!agent.id) {
+      toast.error("Missing agent id");
+      return;
+    }
+    try {
+      await startCall({
+        phoneNumber: phoneNumber || "web-demo",
+        callerName: "Test Agent",
+        language: agent.language,
+      });
+      setShowKeypad(false);
+    } catch (err: any) {
+      toast.error(err?.message || "Unable to start call");
+    }
+  };
+
   const handleEndCall = () => {
     stopUtteranceRecording();
     stopCall();
-    setTimeout(() => onClose(), 300);
+    setTimeout(() => onClose(), 150);
+  };
+
+  const appendDigit = (digit: string) => {
+    setPhoneNumber((prev) => `${prev}${digit}`);
+    if (isConnected) {
+      sendUserText(digit);
+    }
+  };
+
+  const handleBackspace = () => {
+    setPhoneNumber((prev) => prev.slice(0, -1));
   };
 
   const formatDuration = (seconds: number) => {
@@ -79,120 +132,166 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
-      <Card className="w-full max-w-md bg-slate-900 border-slate-800 shadow-2xl overflow-hidden flex flex-col relative">
-        {/* Close Button */}
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl relative overflow-hidden border border-slate-200">
         <button
           type="button"
           onClick={handleEndCall}
-          className="absolute right-4 top-4 p-2 hover:bg-slate-800 rounded-full transition-colors z-10 text-slate-400 hover:text-white"
+          className="absolute right-4 top-4 p-2 rounded-full text-slate-500 hover:bg-slate-100 transition"
         >
           <X className="size-5" />
         </button>
 
-        <CardContent className="p-8 flex flex-col items-center justify-between min-h-[500px]">
-          {/* Header Info */}
-          <div className="text-center space-y-2 mt-4">
-            <Badge variant="outline" className="border-slate-700 text-slate-400 mb-4 px-3 py-1">
-              {status === "connected" ? "Live Call" : "Connecting..."}
-            </Badge>
-            <h2 className="text-2xl font-semibold text-white tracking-tight">{agent.name}</h2>
-            <p className="text-slate-400 text-sm font-medium">{agent.voice || "AI Assistant"}</p>
-          </div>
+        <div className="px-6 pt-6 pb-4">
+          <p className="text-lg font-semibold text-slate-900">Test Agent</p>
+          <p className="text-slate-500">Call with {agent.name || "Customer Support Agent"}</p>
+        </div>
 
-          {/* Visualizer Area */}
-          <div className="flex-1 flex items-center justify-center w-full py-8">
-            <div className="relative">
-              {/* Pulse Rings */}
-              {status === "connected" && (
-                <>
-                  <div className="absolute inset-0 rounded-full bg-blue-500/20 animate-ping duration-[3s]" />
-                  <div className="absolute inset-0 rounded-full bg-blue-500/10 animate-ping duration-[2s] delay-75" />
-                </>
-              )}
+        <Separator />
 
-              {/* Main Avatar Circle */}
-              <div className={`size-32 rounded-full flex items-center justify-center transition-all duration-500 ${status === "connected"
-                ? "bg-gradient-to-br from-blue-600 to-indigo-600 shadow-[0_0_40px_rgba(37,99,235,0.3)]"
-                : "bg-slate-800"
-                }`}>
-                {status === "connected" ? (
-                  <Activity className="size-12 text-white animate-pulse" />
-                ) : (
-                  <Phone className="size-12 text-slate-500 animate-pulse" />
-                )}
+        {!isConnected && (
+          <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+            <div className="space-y-2">
+              <label className="text-slate-700 font-semibold">Phone Number</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={phoneNumber}
+                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  placeholder="+1 (555) 000-0000"
+                  className="text-lg py-3"
+                />
+                <Button variant="ghost" size="icon" onClick={handleBackspace} title="Clear last digit">
+                  <Delete className="size-4 text-slate-500" />
+                </Button>
               </div>
-
-              {/* Listening Indicator */}
-              {isListening && (
-                <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 flex gap-1 h-6 items-end">
-                  {[...Array(5)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="w-1 bg-green-500 rounded-full animate-music-bar"
-                      style={{
-                        height: `${Math.random() * 100}%`,
-                        animationDelay: `${i * 0.1}s`
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
             </div>
-          </div>
 
-          {/* Timer */}
-          <div className="mb-8 font-mono text-slate-500 text-lg tracking-wider">
-            {formatDuration(callDuration)}
-          </div>
+            <div className="grid grid-cols-3 gap-4">
+              {KEYPAD.map((key) => (
+                <button
+                  key={key.primary}
+                  onClick={() => appendDigit(key.primary)}
+                  className="rounded-xl border border-slate-200 py-4 bg-white hover:bg-slate-50 shadow-sm transition flex flex-col items-center"
+                >
+                  <span className="text-xl text-slate-900 font-semibold">{key.primary}</span>
+                  {key.secondary && <span className="text-xs text-slate-500">{key.secondary}</span>}
+                </button>
+              ))}
+            </div>
 
-          {/* Controls */}
-          <div className="w-full space-y-6">
-            <div className="flex items-center justify-center gap-6">
+            <Button
+              onClick={handleStart}
+              disabled={isStarting}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-6 text-lg flex items-center justify-center gap-2"
+            >
+              {isStarting ? <Loader2 className="size-5 animate-spin" /> : <Phone className="size-5" />}
+              Start Call
+            </Button>
+
+            <Card className="bg-blue-50 border-blue-200">
+              <CardContent className="p-4 space-y-2">
+                <div className="flex items-center gap-2 text-blue-700 font-semibold">
+                  <Lightbulb className="size-4" />
+                  Quick Tips
+                </div>
+                <ul className="list-disc list-inside text-sm text-blue-800 space-y-1">
+                  <li>Call connects within 10 seconds</li>
+                  <li>Fully recorded and transcribed</li>
+                  <li>Use controls to mute or enable speaker</li>
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {isConnected && (
+          <div className="p-6 space-y-6">
+            <div className="flex flex-col items-center gap-3">
+              <div className="relative">
+                <div className="size-16 rounded-full bg-emerald-100 flex items-center justify-center">
+                  <PhoneCall className="size-8 text-emerald-600" />
+                </div>
+                <span className="absolute -right-2 -bottom-2 bg-white border border-emerald-200 text-emerald-700 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <CheckCircle2 className="size-3" />
+                  {status === "connected" ? "Connected" : "Connecting"}
+                </span>
+              </div>
+              <div className="text-center">
+                <p className="text-slate-900 font-semibold text-lg">{agent.name || "Customer Support Agent"}</p>
+                <p className="text-slate-500 text-sm">{phoneNumber || "Live session"}</p>
+              </div>
+              <div className="bg-slate-100 text-slate-700 rounded-full px-3 py-1 text-sm font-medium flex items-center gap-2">
+                <span className="size-2 rounded-full bg-rose-500" />
+                {formatDuration(callDuration)}
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+              <div className="flex items-center gap-2 text-rose-500 text-sm font-semibold">
+                <span className="size-2 rounded-full bg-rose-500" />
+                Live Transcript
+              </div>
+              <p className="text-slate-900">
+                <span className="text-indigo-600 font-semibold">AI:</span>{" "}
+                {latestAssistantLine?.text || "Waiting for the agent to respond..."}
+              </p>
+            </div>
+
+            {showKeypad && (
+              <div className="grid grid-cols-3 gap-3">
+                {KEYPAD.map((key) => (
+                  <button
+                    key={`connected-${key.primary}`}
+                    onClick={() => appendDigit(key.primary)}
+                    className="rounded-lg border border-slate-200 py-3 bg-white hover:bg-slate-50 transition flex flex-col items-center"
+                  >
+                    <span className="text-lg text-slate-900 font-semibold">{key.primary}</span>
+                    {key.secondary && <span className="text-[11px] text-slate-500">{key.secondary}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="grid grid-cols-3 gap-3">
               <button
                 onClick={toggleMicrophoneMute}
-                className={`p-4 rounded-full transition-all duration-200 ${isMicrophoneMuted
-                  ? "bg-slate-800 text-red-500 hover:bg-slate-700"
-                  : "bg-slate-800 text-white hover:bg-slate-700 hover:scale-105"
+                className={`rounded-xl border py-3 flex flex-col items-center gap-2 transition ${isMicrophoneMuted
+                  ? "border-rose-200 bg-rose-50 text-rose-700"
+                  : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
                   }`}
               >
-                {isMicrophoneMuted ? <MicOff className="size-6" /> : <Mic className="size-6" />}
+                {isMicrophoneMuted ? <MicOff className="size-5" /> : <Mic className="size-5" />}
+                <span className="text-sm">Mute</span>
               </button>
-
               <button
-                onClick={handleEndCall}
-                className="p-5 rounded-full bg-red-600 text-white hover:bg-red-700 hover:scale-105 shadow-lg shadow-red-900/20 transition-all duration-200"
+                onClick={() => setShowKeypad((prev) => !prev)}
+                className="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 py-3 flex flex-col items-center gap-2"
               >
-                <PhoneOff className="size-8" />
+                <Keypad className="size-5" />
+                <span className="text-sm">Keypad</span>
               </button>
-
               <button
                 onClick={toggleAssistantAudioMute}
-                className={`p-4 rounded-full transition-all duration-200 ${isAssistantAudioMuted
-                  ? "bg-slate-800 text-red-500 hover:bg-slate-700"
-                  : "bg-slate-800 text-white hover:bg-slate-700 hover:scale-105"
+                className={`rounded-xl border py-3 flex flex-col items-center gap-2 transition ${isAssistantAudioMuted
+                  ? "border-amber-200 bg-amber-50 text-amber-700"
+                  : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
                   }`}
               >
-                {isAssistantAudioMuted ? <VolumeX className="size-6" /> : <Volume2 className="size-6" />}
+                {isAssistantAudioMuted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
+                <span className="text-sm">Speaker</span>
               </button>
             </div>
 
-            <p className="text-center text-xs text-slate-500">
-              {isMicrophoneMuted ? "Microphone muted" : "Listening..."}
-            </p>
+            <Button
+              onClick={handleEndCall}
+              className="w-full bg-rose-600 hover:bg-rose-700 text-white py-4 text-lg flex items-center justify-center gap-2"
+            >
+              <PhoneOff className="size-5" />
+              End Call
+            </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      <style>{`
-        @keyframes music-bar {
-          0%, 100% { height: 20%; }
-          50% { height: 100%; }
-        }
-        .animate-music-bar {
-          animation: music-bar 0.8s ease-in-out infinite;
-        }
-      `}</style>
+        )}
+      </div>
     </div>
   );
 }

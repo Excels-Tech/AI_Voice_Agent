@@ -28,6 +28,7 @@ from app.routers import (
     agent_runtimes,
     account_settings,
     dashboard,
+    livekit,
 )
 
 # Configure root logging early so app logs show in the terminal.
@@ -85,6 +86,7 @@ app.include_router(notifications.router, prefix="/api/notifications", tags=["Not
 app.include_router(billing.router, prefix="/api/billing", tags=["Billing"])
 app.include_router(account_settings.router, prefix="/api/account", tags=["Account Settings"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
+app.include_router(livekit.router, prefix="/api/livekit", tags=["LiveKit"])
 app.include_router(websocket.router, prefix="/ws", tags=["WebSocket"])
 # Specialized agent runtime endpoints (multi-agent runtime inspired by Apex Sales Pro)
 app.include_router(agent_runtimes.router, prefix="", tags=["Agent Runtime"])

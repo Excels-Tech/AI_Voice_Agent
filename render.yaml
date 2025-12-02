@@ -19,3 +19,9 @@ services:
         value: '["https://your-frontend.onrender.com","http://localhost:3000"]'
       - key: NODE_VERSION
         value: "18"
+      - key: LIVEKIT_URL
+        sync: false
+      - key: LIVEKIT_API_KEY
+        sync: false
+      - key: LIVEKIT_API_SECRET
+        sync: false

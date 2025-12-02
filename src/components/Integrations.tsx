@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Badge } from "./ui/badge";
 import { Webhook, Calendar, Mail, MessageSquare, Database, Zap, Check, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { LiveKitIntegrationCard } from "./LiveKitIntegrationCard";
 
 export function Integrations() {
   const [connectedIntegrations, setConnectedIntegrations] = useState<string[]>(["zapier"]);
@@ -130,6 +131,8 @@ export function Integrations() {
         <h1 className="text-slate-900 mb-2">Integrations</h1>
         <p className="text-slate-600">Connect your AI agents with your favorite tools</p>
       </div>
+
+      <LiveKitIntegrationCard />
 
       {/* Popular Integrations */}
       <div>

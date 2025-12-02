@@ -454,6 +454,19 @@ export function useLiveCallSession(agentId?: number) {
     cleanup();
   }, [cleanup, stopAllAssistantAudio]);
 
+  const sendUserText = useCallback((text: string) => {
+    if (!text || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      setError("Call is not connected yet");
+      return;
+    }
+    wsRef.current.send(
+      JSON.stringify({
+        type: "user_text",
+        text,
+      }),
+    );
+  }, []);
+
   useEffect(() => {
     return () => {
       cleanup();
@@ -478,5 +491,6 @@ export function useLiveCallSession(agentId?: number) {
     toggleMicrophoneMute,
     isAssistantAudioMuted,
     toggleAssistantAudioMute,
+    sendUserText,
   };
 }

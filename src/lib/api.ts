@@ -197,6 +197,7 @@ export interface LiveCallSessionResponse {
   workspace_id: number;
   websocket_path: string;
   expires_at: string;
+  livekit?: LiveKitDetails;
 }
 
 export async function createLiveCallSession(payload: LiveCallSessionPayload) {
@@ -468,6 +469,87 @@ export async function getUsageStats(workspaceId: number) {
 
 export async function recordUsage(workspaceId: number, payload: { metric: string; value: number; period?: string }) {
   return apiFetch(`/api/billing/usage?workspace_id=${workspaceId}`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+// LiveKit
+export interface LiveKitDetails {
+  url: string;
+  room: string;
+  agent_identity?: string;
+  agent_token?: string;
+  monitor_identity?: string;
+  monitor_token?: string;
+  expires_at: string;
+}
+
+export interface LiveKitTokenResponse {
+  url: string;
+  room: string;
+  identity: string;
+  token: string;
+  expires_at: string;
+}
+
+export async function createLiveKitToken(payload: {
+  room: string;
+  identity?: string;
+  name?: string;
+  workspace_id?: number;
+  agent_id?: number;
+  ttl_seconds?: number;
+  can_publish?: boolean;
+  can_subscribe?: boolean;
+  metadata?: Record<string, any>;
+}) {
+  return apiFetch<LiveKitTokenResponse>("/api/livekit/token", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export interface LiveKitCallPreviewResponse {
+  call: CallLog;
+  livekit?: LiveKitDetails;
+  batch_id?: string;
+}
+
+export async function createLiveKitPreview(payload: {
+  agent_id: number;
+  direction?: string;
+  to_number?: string;
+  from_number?: string;
+  caller_name?: string;
+  ttl_seconds?: number;
+}) {
+  return apiFetch<LiveKitCallPreviewResponse>("/api/livekit/calls/preview", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export interface AutoDialLeadPayload {
+  phone_number: string;
+  caller_name?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface AutoDialBatchResponse {
+  batch_id: string;
+  workspace_id: number;
+  agent_id: number;
+  calls: LiveKitCallPreviewResponse[];
+}
+
+export async function createAutoDialerBatch(payload: {
+  agent_id: number;
+  leads: AutoDialLeadPayload[];
+  direction?: string;
+  ttl_seconds?: number;
+}) {
+  return apiFetch<AutoDialBatchResponse>("/api/livekit/calls/auto-dialer", {
     method: "POST",
     body: JSON.stringify(payload),
   });
