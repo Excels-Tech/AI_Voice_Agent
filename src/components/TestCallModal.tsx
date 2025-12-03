@@ -79,6 +79,11 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
     return reversed.find((entry) => entry.role === "assistant") || null;
   }, [transcript]);
 
+  const latestUserLine = useMemo<TranscriptEntry | null>(() => {
+    const reversed = [...transcript].reverse();
+    return reversed.find((entry) => entry.role === "user") || null;
+  }, [transcript]);
+
   useEffect(() => {
     if (error) {
       toast.error(error);
@@ -202,57 +207,50 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
         )}
 
         {isConnected && (
-          <div className="p-6 space-y-6">
-            <div className="flex flex-col items-center gap-3">
+          <div className="flex-1 overflow-y-auto px-8 py-10 space-y-8">
+            <div className="flex flex-col items-center gap-4">
               <div className="relative">
-                <div className="size-16 rounded-full bg-emerald-100 flex items-center justify-center">
-                  <PhoneCall className="size-8 text-emerald-600" />
+                <div className="size-20 rounded-full bg-green-500 flex items-center justify-center shadow-lg">
+                  <PhoneCall className="size-9 text-white" />
                 </div>
-                <span className="absolute -right-2 -bottom-2 bg-white border border-emerald-200 text-emerald-700 text-xs px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <CheckCircle2 className="size-3" />
+                <span className="absolute -right-3 -top-2 bg-white border border-green-200 text-green-700 text-xs px-3 py-1 rounded-full shadow-sm flex items-center gap-1">
+                  <CheckCircle2 className="size-4" />
                   {status === "connected" ? "Connected" : "Connecting"}
                 </span>
               </div>
-              <div className="text-center">
+              <div className="text-center space-y-1">
                 <p className="text-slate-900 font-semibold text-lg">{agent.name || "Customer Support Agent"}</p>
                 <p className="text-slate-500 text-sm">{phoneNumber || "Live session"}</p>
               </div>
-              <div className="bg-slate-100 text-slate-700 rounded-full px-3 py-1 text-sm font-medium flex items-center gap-2">
+              <div className="bg-slate-100 text-slate-700 rounded-full px-4 py-2 text-sm font-medium flex items-center gap-2 shadow-sm">
                 <span className="size-2 rounded-full bg-rose-500" />
                 {formatDuration(callDuration)}
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3 shadow-sm">
               <div className="flex items-center gap-2 text-rose-500 text-sm font-semibold">
                 <span className="size-2 rounded-full bg-rose-500" />
                 Live Transcript
               </div>
-              <p className="text-slate-900">
-                <span className="text-indigo-600 font-semibold">AI:</span>{" "}
-                {latestAssistantLine?.text || "Waiting for the agent to respond..."}
-              </p>
+              <div className="space-y-2 text-slate-900">
+                <p>
+                  <span className="text-indigo-600 font-semibold mr-1">AI:</span>
+                  {latestAssistantLine?.text || "Waiting for the agent to respond..."}
+                </p>
+                {latestUserLine?.text ? (
+                  <p className="text-slate-700">
+                    <span className="text-slate-600 font-semibold mr-1">You:</span>
+                    {latestUserLine.text}
+                  </p>
+                ) : null}
+              </div>
             </div>
 
-            {showKeypad && (
-              <div className="grid grid-cols-3 gap-3">
-                {KEYPAD.map((key) => (
-                  <button
-                    key={`connected-${key.primary}`}
-                    onClick={() => appendDigit(key.primary)}
-                    className="rounded-lg border border-slate-200 py-3 bg-white hover:bg-slate-50 transition flex flex-col items-center"
-                  >
-                    <span className="text-lg text-slate-900 font-semibold">{key.primary}</span>
-                    {key.secondary && <span className="text-[11px] text-slate-500">{key.secondary}</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-4">
               <button
                 onClick={toggleMicrophoneMute}
-                className={`rounded-xl border py-3 flex flex-col items-center gap-2 transition ${isMicrophoneMuted
+                className={`rounded-xl border py-4 flex flex-col items-center gap-2 transition shadow-sm ${isMicrophoneMuted
                   ? "border-rose-200 bg-rose-50 text-rose-700"
                   : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
                   }`}
@@ -262,14 +260,14 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
               </button>
               <button
                 onClick={() => setShowKeypad((prev) => !prev)}
-                className="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 py-3 flex flex-col items-center gap-2"
+                className="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 py-4 flex flex-col items-center gap-2 shadow-sm"
               >
                 <Grid3x3 className="size-5" />
                 <span className="text-sm">Keypad</span>
               </button>
               <button
                 onClick={toggleAssistantAudioMute}
-                className={`rounded-xl border py-3 flex flex-col items-center gap-2 transition ${isAssistantAudioMuted
+                className={`rounded-xl border py-4 flex flex-col items-center gap-2 transition shadow-sm ${isAssistantAudioMuted
                   ? "border-amber-200 bg-amber-50 text-amber-700"
                   : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
                   }`}
@@ -279,9 +277,24 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
               </button>
             </div>
 
+            {showKeypad && (
+              <div className="grid grid-cols-3 gap-3">
+                {KEYPAD.map((key) => (
+                  <button
+                    key={`connected-${key.primary}`}
+                    onClick={() => appendDigit(key.primary)}
+                    className="rounded-lg border border-slate-200 py-3 bg-white hover:bg-slate-50 transition flex flex-col items-center shadow-sm"
+                  >
+                    <span className="text-lg text-slate-900 font-semibold">{key.primary}</span>
+                    {key.secondary && <span className="text-[11px] text-slate-500">{key.secondary}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <Button
               onClick={handleEndCall}
-              className="w-full bg-rose-600 hover:bg-rose-700 text-white py-4 text-lg flex items-center justify-center gap-2"
+              className="w-full bg-rose-600 hover:bg-rose-700 text-white py-4 text-lg flex items-center justify-center gap-2 rounded-lg shadow-sm"
             >
               <PhoneOff className="size-5" />
               End Call
