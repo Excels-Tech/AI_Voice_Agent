@@ -2,12 +2,11 @@ import { useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
-import { Textarea } from "./ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Webhook, Calendar, Mail, MessageSquare, Database, Zap, Check, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { LiveKitIntegrationCard } from "./LiveKitIntegrationCard";
+import { VonageIntegrationCard } from "./VonageIntegrationCard";
 
 export function Integrations() {
   const [connectedIntegrations, setConnectedIntegrations] = useState<string[]>(["zapier"]);
@@ -132,7 +131,7 @@ export function Integrations() {
         <p className="text-slate-600">Connect your AI agents with your favorite tools</p>
       </div>
 
-      <LiveKitIntegrationCard />
+      <VonageIntegrationCard />
 
       {/* Popular Integrations */}
       <div>

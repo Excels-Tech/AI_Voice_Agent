@@ -20,10 +20,6 @@ class CallSessionState:
     voice: str
     model: str
     system_prompt: str
-    livekit_room: str | None = None
-    livekit_url: str | None = None
-    livekit_monitor_identity: str | None = None
-    livekit_monitor_token: str | None = None
     created_at: datetime = field(default_factory=datetime.utcnow)
     last_active: datetime = field(default_factory=datetime.utcnow)
     history: List[Dict[str, str]] = field(default_factory=list)

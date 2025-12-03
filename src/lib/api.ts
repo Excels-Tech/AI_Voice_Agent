@@ -197,7 +197,6 @@ export interface LiveCallSessionResponse {
   workspace_id: number;
   websocket_path: string;
   expires_at: string;
-  livekit?: LiveKitDetails;
 }
 
 export async function createLiveCallSession(payload: LiveCallSessionPayload) {
@@ -474,84 +473,30 @@ export async function recordUsage(workspaceId: number, payload: { metric: string
   });
 }
 
-// LiveKit
-export interface LiveKitDetails {
-  url: string;
-  room: string;
-  agent_identity?: string;
-  agent_token?: string;
-  monitor_identity?: string;
-  monitor_token?: string;
-  expires_at: string;
+// Vonage Voice
+export interface VonageStatus {
+  configured: boolean;
+  application_id?: string | null;
+  voice_webhook_base?: string | null;
+  answer_url?: string | null;
+  event_url?: string | null;
+  missing: string[];
 }
 
-export interface LiveKitTokenResponse {
-  url: string;
-  room: string;
-  identity: string;
+export interface VonageTokenResponse {
   token: string;
   expires_at: string;
+  application_id: string;
 }
 
-export async function createLiveKitToken(payload: {
-  room: string;
-  identity?: string;
-  name?: string;
-  workspace_id?: number;
-  agent_id?: number;
-  ttl_seconds?: number;
-  can_publish?: boolean;
-  can_subscribe?: boolean;
-  metadata?: Record<string, any>;
-}) {
-  return apiFetch<LiveKitTokenResponse>("/api/livekit/token", {
+export async function getVonageStatus() {
+  return apiFetch<VonageStatus>("/api/vonage/status");
+}
+
+export async function createVonageToken(payload?: { ttl_seconds?: number; acl?: Record<string, any> }) {
+  return apiFetch<VonageTokenResponse>("/api/vonage/token", {
     method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export interface LiveKitCallPreviewResponse {
-  call: CallLog;
-  livekit?: LiveKitDetails;
-  batch_id?: string;
-}
-
-export async function createLiveKitPreview(payload: {
-  agent_id: number;
-  direction?: string;
-  to_number?: string;
-  from_number?: string;
-  caller_name?: string;
-  ttl_seconds?: number;
-}) {
-  return apiFetch<LiveKitCallPreviewResponse>("/api/livekit/calls/preview", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-}
-
-export interface AutoDialLeadPayload {
-  phone_number: string;
-  caller_name?: string;
-  metadata?: Record<string, any>;
-}
-
-export interface AutoDialBatchResponse {
-  batch_id: string;
-  workspace_id: number;
-  agent_id: number;
-  calls: LiveKitCallPreviewResponse[];
-}
-
-export async function createAutoDialerBatch(payload: {
-  agent_id: number;
-  leads: AutoDialLeadPayload[];
-  direction?: string;
-  ttl_seconds?: number;
-}) {
-  return apiFetch<AutoDialBatchResponse>("/api/livekit/calls/auto-dialer", {
-    method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify(payload || {}),
   });
 }
 

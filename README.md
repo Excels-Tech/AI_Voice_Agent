@@ -28,34 +28,31 @@
   - Email: `sarah@voiceai.app`
   - Password: `changeme`
 
-  ## LiveKit voice (inbound, outbound, dialer/auto-dial)
+  ## Vonage voice (inbound/outbound via Vonage Voice API)
 
-  LiveKit now powers voice transport for preview rooms, inbound monitoring, and outbound/auto-dial scaffolding. What you need:
+  Vonage now powers telephony for PSTN/WebSocket handoff. What you need:
 
-  - A LiveKit Cloud project (or self-hosted) with `LIVEKIT_URL`, `LIVEKIT_API_KEY`, and `LIVEKIT_API_SECRET`.
-  - Optional: `LIVEKIT_WEBHOOK_SECRET` and `LIVEKIT_EGRESS_WEBHOOK` if you want delivery receipts/recordings.
-  - Update `.env` or `backend/.env.example` with the LiveKit values, then restart the backend.
+  - A Vonage application with `VONAGE_API_KEY`, `VONAGE_API_SECRET`, and `VONAGE_APPLICATION_ID`.
+  - A private key (PEM) provided to Vonage; set it via `VONAGE_PRIVATE_KEY` (escaped `\n`) or `VONAGE_PRIVATE_KEY_PATH`.
+  - `VONAGE_VOICE_WEBHOOK_BASE` pointing to your deployed backend (e.g. Render service URL) so Vonage can reach the answer/event hooks.
 
   Key endpoints:
 
-  - `POST /api/livekit/token` — mint a monitor/participant token for any room.
-  - `POST /api/livekit/calls/preview` — create a call log + LiveKit tokens for an inbound/outbound preview room.
-  - `POST /api/livekit/calls/auto-dialer` — queue multiple outbound calls and get LiveKit monitor tokens for each.
+  - `GET /api/vonage/status` — check whether Vonage is configured and copy webhook URLs.
+  - `POST /api/vonage/token` — mint a short-lived Vonage Voice JWT for client/server use.
+  - `POST /api/vonage/voice/answer` — default NCCO response (customize for production to bridge to your agent).
+  - `POST /api/vonage/voice/event` — ack Vonage voice events.
 
-  Quick outbound preview example:
+  Quick token mint example:
 
   ```bash
-  curl -X POST http://127.0.0.1:8000/api/livekit/calls/preview \
+  curl -X POST http://127.0.0.1:8000/api/vonage/token \
     -H "Authorization: Bearer <your_access_token>" \
     -H "Content-Type: application/json" \
-    -d '{
-      "agent_id": 1,
-      "to_number": "+15551234567",
-      "caller_name": "LiveKit Preview"
-    }'
+    -d '{"ttl_seconds": 3600}'
   ```
 
-  Frontend: open **Integrations → LiveKit Voice Transport** to mint monitor tokens, start preview calls, or push an auto-dial batch (uses the new backend endpoints).
+  Frontend: open **Integrations → Vonage Voice Integration** to mint tokens and copy the webhook URLs.
 
   ### Deploy to Render (backend)
 

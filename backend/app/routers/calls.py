@@ -19,7 +19,6 @@ from app.models.call import (
 from app.models.agent import Agent
 from app.services.call_sessions import call_session_manager
 from app.services.language import resolve_language_code
-from app.services.livekit_service import livekit_service
 
 router = APIRouter()
 
@@ -201,20 +200,6 @@ async def create_live_call_session(
             "call_id": call_log.id,
         },
     )
-    livekit_payload = livekit_service.build_call_bundle(
-        workspace_id=agent.workspace_id,
-        call_id=call_log.id,
-        agent_id=agent.id,
-        agent_name=agent.name,
-        caller_label=call_data.caller_name or call_data.caller_number or current_user.email,
-    )
-    if livekit_payload:
-        session_state.livekit_room = livekit_payload["room"]
-        session_state.livekit_url = livekit_payload["url"]
-        session_state.livekit_monitor_identity = livekit_payload["monitor_identity"]
-        session_state.livekit_monitor_token = livekit_payload["monitor_token"]
-        session_state.metadata["livekit_room"] = livekit_payload["room"]
-        session_state.metadata["livekit_monitor_identity"] = livekit_payload["monitor_identity"]
 
     expires_at = session_state.created_at + call_session_manager.default_ttl
     return CallSessionResponse(
@@ -225,7 +210,6 @@ async def create_live_call_session(
         workspace_id=agent.workspace_id,
         websocket_path=f"/ws/calls/live/{session_state.id}",
         expires_at=expires_at,
-        livekit=livekit_payload,
     )
 
 

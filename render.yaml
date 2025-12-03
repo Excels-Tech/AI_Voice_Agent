@@ -19,9 +19,15 @@ services:
         value: '["https://your-frontend.onrender.com","http://localhost:3000"]'
       - key: NODE_VERSION
         value: "18"
-      - key: LIVEKIT_URL
+      - key: VONAGE_API_KEY
         sync: false
-      - key: LIVEKIT_API_KEY
+      - key: VONAGE_API_SECRET
         sync: false
-      - key: LIVEKIT_API_SECRET
+      - key: VONAGE_APPLICATION_ID
         sync: false
+      - key: VONAGE_PRIVATE_KEY
+        sync: false
+      - key: VONAGE_PRIVATE_KEY_PATH
+        sync: false
+      - key: VONAGE_VOICE_WEBHOOK_BASE
+        value: https://your-service.onrender.com

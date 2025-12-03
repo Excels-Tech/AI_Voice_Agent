@@ -45,6 +45,14 @@ class Settings(BaseSettings):
     TWILIO_AUTH_TOKEN: str = ""
     TWILIO_PHONE_NUMBER: str = ""
     TWILIO_WEBHOOK_URL: str = ""
+
+    # Vonage Voice
+    VONAGE_API_KEY: str = ""
+    VONAGE_API_SECRET: str = ""
+    VONAGE_APPLICATION_ID: str = ""
+    VONAGE_PRIVATE_KEY_PATH: str = ""
+    VONAGE_PRIVATE_KEY: str = ""
+    VONAGE_VOICE_WEBHOOK_BASE: str = ""
     
     # AWS S3
     AWS_ACCESS_KEY_ID: str = ""
@@ -73,13 +81,6 @@ class Settings(BaseSettings):
     STRIPE_WEBHOOK_SECRET: str = ""
     STRIPE_PUBLISHABLE_KEY: str = ""
 
-    # LiveKit
-    LIVEKIT_URL: str = ""
-    LIVEKIT_API_KEY: str = ""
-    LIVEKIT_API_SECRET: str = ""
-    LIVEKIT_WEBHOOK_SECRET: str = ""
-    LIVEKIT_EGRESS_WEBHOOK: str = ""
-    
     # Frontend URL
     FRONTEND_URL: str = "http://localhost:3000"
     

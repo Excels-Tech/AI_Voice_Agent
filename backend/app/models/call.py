@@ -96,17 +96,6 @@ class CallSessionCreate(SQLModel):
     language: Optional[str] = None
 
 
-class LiveKitDetails(SQLModel):
-    """Lightweight LiveKit credential payload for clients."""
-    url: str
-    room: str
-    agent_identity: Optional[str] = None
-    agent_token: Optional[str] = None
-    monitor_identity: Optional[str] = None
-    monitor_token: Optional[str] = None
-    expires_at: datetime
-
-
 class CallSessionResponse(SQLModel):
     """Response payload after creating a live session."""
     session_id: str
@@ -116,4 +105,3 @@ class CallSessionResponse(SQLModel):
     workspace_id: int
     websocket_path: str
     expires_at: datetime
-    livekit: Optional[LiveKitDetails] = None
