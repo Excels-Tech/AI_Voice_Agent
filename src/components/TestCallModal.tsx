@@ -138,8 +138,8 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-[540px] max-h-[90vh] bg-white rounded-3xl shadow-2xl relative overflow-hidden border border-slate-200 flex flex-col">
-        <div className="px-7 pt-7 pb-6 border-b border-slate-200">
+      <div className="w-full max-w-[600px] max-h-[90vh] bg-white rounded-3xl shadow-2xl relative overflow-hidden border border-slate-200 flex flex-col">
+        <div className="px-7 pt-6 pb-5 border-b border-slate-200">
           <button
             type="button"
             onClick={handleEndCall}
@@ -152,7 +152,7 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
         </div>
 
         {!isConnected && (
-          <div className="flex-1 overflow-y-auto px-7 py-7 space-y-7">
+          <div className="flex-1 overflow-y-auto px-7 py-7 space-y-6">
             <div className="space-y-2">
               <label className="text-slate-700 font-semibold">Phone Number</label>
               <div className="flex items-center gap-2">
@@ -184,7 +184,7 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
             <Button
               onClick={handleStart}
               disabled={isStarting}
-              className="w-full bg-green-600 hover:bg-green-700 text-white py-4 text-base md:text-lg flex items-center justify-center gap-2 rounded-xl shadow"
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-4 text-base flex items-center justify-center gap-2 rounded-xl shadow"
             >
               {isStarting ? <Loader2 className="size-5 animate-spin" /> : <Phone className="size-5" />}
               Start Call
@@ -207,7 +207,7 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
         )}
 
         {isConnected && (
-          <div className="flex-1 overflow-y-auto px-7 py-8 space-y-8">
+          <div className="flex-1 overflow-y-auto px-7 py-8 space-y-7">
             <div className="flex flex-col items-center gap-3">
               <div className="flex items-center gap-3">
                 <div className="relative">
