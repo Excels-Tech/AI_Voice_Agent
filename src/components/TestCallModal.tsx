@@ -138,7 +138,7 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl relative overflow-hidden border border-slate-200 flex flex-col">
+      <div className="w-full max-w-3xl max-h-[90vh] bg-white rounded-2xl shadow-2xl relative overflow-hidden border border-slate-200 flex flex-col">
         <div className="px-8 pt-6 pb-5 border-b border-slate-200">
           <button
             type="button"
@@ -209,11 +209,13 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
         {isConnected && (
           <div className="flex-1 overflow-y-auto px-8 py-10 space-y-8">
             <div className="flex flex-col items-center gap-4">
-              <div className="relative">
-                <div className="size-20 rounded-full bg-green-500 flex items-center justify-center shadow-lg">
-                  <PhoneCall className="size-9 text-white" />
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="size-16 md:size-20 rounded-full bg-green-500 flex items-center justify-center shadow-lg">
+                    <PhoneCall className="size-8 md:size-9 text-white" />
+                  </div>
                 </div>
-                <span className="absolute -right-3 -top-2 bg-white border border-green-200 text-green-700 text-xs px-3 py-1 rounded-full shadow-sm flex items-center gap-1">
+                <span className="bg-white border border-green-200 text-green-700 text-xs px-3 py-1 rounded-full shadow-sm flex items-center gap-1">
                   <CheckCircle2 className="size-4" />
                   {status === "connected" ? "Connected" : "Connecting"}
                 </span>
@@ -228,7 +230,7 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3 shadow-sm">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 space-y-3 shadow-sm">
               <div className="flex items-center gap-2 text-rose-500 text-sm font-semibold">
                 <span className="size-2 rounded-full bg-rose-500" />
                 Live Transcript
@@ -294,9 +296,9 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
 
             <Button
               onClick={handleEndCall}
-              className="w-full bg-rose-600 hover:bg-rose-700 text-white py-4 text-lg flex items-center justify-center gap-2 rounded-lg shadow-sm"
+              className="w-full bg-white text-slate-900 border border-slate-200 hover:bg-slate-50 py-4 text-lg flex items-center justify-center gap-2 rounded-2xl shadow-sm"
             >
-              <PhoneOff className="size-5" />
+              <PhoneOff className="size-5 text-rose-600" />
               End Call
             </Button>
           </div>
