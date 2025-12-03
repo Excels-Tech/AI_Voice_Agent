@@ -138,8 +138,8 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-6xl max-h-[95vh] bg-white rounded-2xl shadow-2xl relative overflow-hidden border border-slate-200 flex flex-col">
-        <div className="px-8 pt-6 pb-5 border-b border-slate-200">
+      <div className="w-full max-w-[1200px] max-h-[92vh] bg-white rounded-3xl shadow-2xl relative overflow-hidden border border-slate-200 flex flex-col">
+        <div className="px-10 pt-7 pb-6 border-b border-slate-200">
           <button
             type="button"
             onClick={handleEndCall}
@@ -152,7 +152,7 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
         </div>
 
         {!isConnected && (
-          <div className="flex-1 overflow-y-auto px-10 py-8 space-y-8">
+          <div className="flex-1 overflow-y-auto px-10 py-10 space-y-10">
             <div className="space-y-2">
               <label className="text-slate-700 font-semibold">Phone Number</label>
               <div className="flex items-center gap-2">
@@ -173,7 +173,7 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
                 <button
                   key={key.primary}
                   onClick={() => appendDigit(key.primary)}
-                  className="rounded-xl border border-slate-200 py-6 bg-white hover:bg-slate-50 shadow-sm transition flex flex-col items-center gap-1"
+                  className="rounded-xl border border-slate-200 py-7 bg-white hover:bg-slate-50 shadow-sm transition flex flex-col items-center gap-1"
                 >
                   <span className="text-2xl text-slate-900 font-semibold">{key.primary}</span>
                   {key.secondary && <span className="text-sm text-slate-500">{key.secondary}</span>}
@@ -207,7 +207,7 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
         )}
 
         {isConnected && (
-          <div className="flex-1 overflow-y-auto px-8 py-10 space-y-8">
+          <div className="flex-1 overflow-y-auto px-10 py-10 space-y-10">
             <div className="flex flex-col items-center gap-4">
               <div className="flex items-center gap-3">
                 <div className="relative">
@@ -252,7 +252,7 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
             <div className="grid grid-cols-3 gap-4">
               <button
                 onClick={toggleMicrophoneMute}
-                className={`rounded-xl border py-4 flex flex-col items-center gap-2 transition shadow-sm ${isMicrophoneMuted
+                className={`rounded-xl border py-5 flex flex-col items-center gap-2 transition shadow-sm ${isMicrophoneMuted
                   ? "border-rose-200 bg-rose-50 text-rose-700"
                   : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
                   }`}
@@ -262,14 +262,14 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
               </button>
               <button
                 onClick={() => setShowKeypad((prev) => !prev)}
-                className="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 py-4 flex flex-col items-center gap-2 shadow-sm"
+                className="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 py-5 flex flex-col items-center gap-2 shadow-sm"
               >
                 <Grid3x3 className="size-5" />
                 <span className="text-sm">Keypad</span>
               </button>
               <button
                 onClick={toggleAssistantAudioMute}
-                className={`rounded-xl border py-4 flex flex-col items-center gap-2 transition shadow-sm ${isAssistantAudioMuted
+                className={`rounded-xl border py-5 flex flex-col items-center gap-2 transition shadow-sm ${isAssistantAudioMuted
                   ? "border-amber-200 bg-amber-50 text-amber-700"
                   : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
                   }`}
