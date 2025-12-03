@@ -133,24 +133,21 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl relative overflow-hidden border border-slate-200 overflow-y-auto">
-        <button
-          type="button"
-          onClick={handleEndCall}
-          className="absolute right-4 top-4 p-2 rounded-full text-slate-500 hover:bg-slate-100 transition"
-        >
-          <X className="size-5" />
-        </button>
-
-        <div className="px-6 pt-6 pb-4">
-          <p className="text-lg font-semibold text-slate-900">Test Agent</p>
-          <p className="text-slate-500">Call with {agent.name || "Customer Support Agent"}</p>
+      <div className="w-full max-w-2xl max-h-[90vh] bg-white rounded-2xl shadow-2xl relative overflow-hidden border border-slate-200 flex flex-col">
+        <div className="px-8 pt-6 pb-5 border-b border-slate-200">
+          <button
+            type="button"
+            onClick={handleEndCall}
+            className="absolute right-4 top-4 p-2 rounded-full text-slate-500 hover:bg-slate-100 transition"
+          >
+            <X className="size-5" />
+          </button>
+          <p className="text-xl font-semibold text-slate-900">Test Agent</p>
+          <p className="text-slate-500 text-base">Call with {agent.name || "Customer Support Agent"}</p>
         </div>
 
-        <Separator />
-
         {!isConnected && (
-          <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+          <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
             <div className="space-y-2">
               <label className="text-slate-700 font-semibold">Phone Number</label>
               <div className="flex items-center gap-2">
@@ -182,7 +179,7 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
             <Button
               onClick={handleStart}
               disabled={isStarting}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-6 text-lg flex items-center justify-center gap-2"
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-6 text-lg flex items-center justify-center gap-2 rounded-lg"
             >
               {isStarting ? <Loader2 className="size-5 animate-spin" /> : <Phone className="size-5" />}
               Start Call
