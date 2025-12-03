@@ -138,7 +138,7 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-3xl max-h-[90vh] bg-white rounded-2xl shadow-2xl relative overflow-hidden border border-slate-200 flex flex-col">
+      <div className="w-full max-w-6xl max-h-[95vh] bg-white rounded-2xl shadow-2xl relative overflow-hidden border border-slate-200 flex flex-col">
         <div className="px-8 pt-6 pb-5 border-b border-slate-200">
           <button
             type="button"
@@ -152,7 +152,7 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
         </div>
 
         {!isConnected && (
-          <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+          <div className="flex-1 overflow-y-auto px-10 py-8 space-y-8">
             <div className="space-y-2">
               <label className="text-slate-700 font-semibold">Phone Number</label>
               <div className="flex items-center gap-2">
@@ -160,7 +160,7 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="+1 (555) 000-0000"
-                  className="text-lg py-3"
+                  className="text-lg py-4"
                 />
                 <Button variant="ghost" size="icon" onClick={handleBackspace} title="Clear last digit">
                   <Delete className="size-4 text-slate-500" />
@@ -173,10 +173,10 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
                 <button
                   key={key.primary}
                   onClick={() => appendDigit(key.primary)}
-                  className="rounded-xl border border-slate-200 py-4 bg-white hover:bg-slate-50 shadow-sm transition flex flex-col items-center"
+                  className="rounded-xl border border-slate-200 py-6 bg-white hover:bg-slate-50 shadow-sm transition flex flex-col items-center gap-1"
                 >
-                  <span className="text-xl text-slate-900 font-semibold">{key.primary}</span>
-                  {key.secondary && <span className="text-xs text-slate-500">{key.secondary}</span>}
+                  <span className="text-2xl text-slate-900 font-semibold">{key.primary}</span>
+                  {key.secondary && <span className="text-sm text-slate-500">{key.secondary}</span>}
                 </button>
               ))}
             </div>
@@ -184,7 +184,7 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
             <Button
               onClick={handleStart}
               disabled={isStarting}
-              className="w-full bg-green-600 hover:bg-green-700 text-white py-6 text-lg flex items-center justify-center gap-2 rounded-lg"
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-5 text-lg md:text-xl flex items-center justify-center gap-2 rounded-xl shadow"
             >
               {isStarting ? <Loader2 className="size-5 animate-spin" /> : <Phone className="size-5" />}
               Start Call
