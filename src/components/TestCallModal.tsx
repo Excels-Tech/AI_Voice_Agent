@@ -12,7 +12,7 @@ import {
   MicOff,
   Volume2,
   VolumeX,
-  Keypad,
+  Grid3x3,
   Lightbulb,
   Phone,
   CheckCircle2,
@@ -267,7 +267,7 @@ export function TestCallModal({ agent, onClose }: TestCallModalProps) {
                 onClick={() => setShowKeypad((prev) => !prev)}
                 className="rounded-xl border border-slate-200 bg-white hover:bg-slate-50 py-3 flex flex-col items-center gap-2"
               >
-                <Keypad className="size-5" />
+                <Grid3x3 className="size-5" />
                 <span className="text-sm">Keypad</span>
               </button>
               <button
