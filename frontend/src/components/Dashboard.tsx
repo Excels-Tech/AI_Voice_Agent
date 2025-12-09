@@ -62,6 +62,7 @@ import { CallSchedulerService } from "./services/CallSchedulerService";
 import { ActiveCallInterface } from "./ActiveCallInterface";
 import { UpcomingCallsWidget } from "./UpcomingCallsWidget";
 import { ThemeSwitcher } from "./ThemeSwitcher";
+import { useMemo } from "react";
 
 interface DashboardProps {
   user: { name: string; email: string };
@@ -94,6 +95,7 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
   const [showAgentBuilder, setShowAgentBuilder] = useState(false);
   const [useAdvancedBuilder, setUseAdvancedBuilder] = useState(true); // CallFluent mode
   const [activeCall, setActiveCall] = useState<any>(null);
+  const [creatingCall, setCreatingCall] = useState(false);
 
   // Notification state
   const [notifications, setNotifications] = useState<Notification[]>([
@@ -220,6 +222,42 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
   const handleLogout = () => {
     toast.success("Logged out successfully");
     onLogout();
+  };
+
+  const startLiveCall = async () => {
+    try {
+      setCreatingCall(true);
+      const res = await fetch("/api/calls/sessions/live/public", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          agent_id: 1, // default to first agent; backend picks latest if null
+          caller_name: user.name,
+          caller_number: "N/A",
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.detail || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      setActiveCall({
+        id: data.call_id,
+        name: user.name || "Caller",
+        company: "",
+        phone: "",
+        assignedAgent: { id: data.agent_id, name: "AI Voice Agent", type: "voice" },
+        topic: "Live demo call",
+        session: data,
+      });
+    } catch (err: any) {
+      console.error("start live call error", err);
+      toast.error("Unable to start call", {
+        description: err?.message || "Check backend connection",
+      });
+    } finally {
+      setCreatingCall(false);
+    }
   };
 
   if (showAgentBuilder) {
@@ -360,14 +398,25 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
                 <h1 className="text-slate-900 dark:text-white mb-2">Welcome back, {user.name}!</h1>
                 <p className="text-slate-600 dark:text-slate-400">Here's your AI voice agent overview</p>
               </div>
-              <Button
-                size="lg"
-                onClick={() => setShowAgentBuilder(true)}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Bot className="size-4 mr-2" />
-                Create New Agent
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button
+                  size="lg"
+                  onClick={startLiveCall}
+                  disabled={creatingCall}
+                  className="bg-emerald-600 hover:bg-emerald-700"
+                >
+                  <PhoneCall className="size-4 mr-2" />
+                  {creatingCall ? "Starting..." : "Start Live Call"}
+                </Button>
+                <Button
+                  size="lg"
+                  onClick={() => setShowAgentBuilder(true)}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Bot className="size-4 mr-2" />
+                  Create New Agent
+                </Button>
+              </div>
             </div>
 
             {/* Stats */}
