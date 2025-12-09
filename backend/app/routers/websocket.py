@@ -21,6 +21,15 @@ active_connections: Dict[str, list] = {
 }
 
 
+async def safe_websocket_send(websocket: WebSocket, message: dict):
+    """Safely send a message through websocket, ignoring connection errors."""
+    try:
+        await websocket.send_json(message)
+    except (RuntimeError, WebSocketDisconnect):
+        # Websocket is already closed, ignore
+        pass
+
+
 class ConnectionManager:
     """Manage WebSocket connections."""
     
@@ -196,7 +205,8 @@ async def websocket_live_voice_call(
                         )
                         last_audio_process = datetime.utcnow()
                 except Exception:
-                    await websocket.send_json({"type": "error", "message": "Invalid audio chunk"})
+                    # Only try to send error if websocket is still connected
+                    await safe_websocket_send(websocket, {"type": "error", "message": "Invalid audio chunk"})
                 continue
 
             if event_type == "user_text":
@@ -260,7 +270,7 @@ async def websocket_live_voice_call(
                         file_extension=audio_extension,
                     )
                 except Exception as exc:
-                    await websocket.send_json({"type": "warning", "message": f"Did not catch that ({exc})"})
+                    await safe_websocket_send(websocket, {"type": "warning", "message": f"Did not catch that ({exc})"})
                     # Proactively ask user to repeat instead of stalling the turn
                     assistant_text = "I didn't catch that. Could you please repeat?"
                     assistant_message_id = uuid4().hex
@@ -293,7 +303,7 @@ async def websocket_live_voice_call(
 
                 user_text = (transcription.get("text") or "").strip()
                 if not user_text:
-                    await websocket.send_json({"type": "warning", "message": "Silence detected"})
+                    await safe_websocket_send(websocket, {"type": "warning", "message": "Silence detected"})
                     continue
 
                 user_message_id = uuid4().hex
