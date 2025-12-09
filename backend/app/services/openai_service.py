@@ -84,8 +84,14 @@ class OpenAIService:
                 },
             }
         except Exception as e:
+            error_str = str(e)
             print(f"OpenAI chat completion error: {e}")
-            raise
+            
+            # Handle specific OpenAI errors gracefully
+            if "insufficient_quota" in error_str or "exceeded your current quota" in error_str:
+                raise ValueError("OpenAI quota exceeded. Please check your billing details.")
+            else:
+                raise
     
     async def text_to_speech(
         self,
@@ -105,8 +111,14 @@ class OpenAIService:
             )
             return response.content
         except Exception as e:
+            error_str = str(e)
             print(f"OpenAI TTS error: {e}")
-            raise
+            
+            # Handle specific OpenAI errors gracefully
+            if "insufficient_quota" in error_str or "exceeded your current quota" in error_str:
+                raise ValueError("OpenAI quota exceeded. Please check your billing details.")
+            else:
+                raise
     
     async def speech_to_text(
         self,
@@ -117,11 +129,16 @@ class OpenAIService:
         """Transcribe audio to text using Whisper."""
         try:
             # Guard tiny payloads to avoid OpenAI 400s
-            if not audio_file or len(audio_file) < 512:
+            if not audio_file or len(audio_file) < 1024:  # Increased minimum size
                 raise ValueError("Audio too short to transcribe")
 
             if not file_extension.startswith("."):
                 file_extension = f".{file_extension}"
+            
+            # Ensure valid file extension for OpenAI Whisper
+            valid_extensions = {".flac", ".m4a", ".mp3", ".mp4", ".mpeg", ".mpga", ".oga", ".ogg", ".wav", ".webm"}
+            if file_extension not in valid_extensions:
+                file_extension = ".wav"  # Default fallback
 
             import tempfile
             import os
@@ -147,8 +164,18 @@ class OpenAIService:
                 "text": response.text,
             }
         except Exception as e:
+            error_str = str(e)
             print(f"OpenAI STT error: {e}")
-            raise
+            
+            # Handle specific OpenAI errors gracefully
+            if "insufficient_quota" in error_str or "exceeded your current quota" in error_str:
+                raise ValueError("OpenAI quota exceeded. Please check your billing details.")
+            elif "Invalid file format" in error_str:
+                raise ValueError(f"Invalid audio format. Please ensure audio is in a supported format: {valid_extensions}")
+            elif "Audio too short" in error_str or "minimum duration" in error_str:
+                raise ValueError("Audio segment too short to transcribe")
+            else:
+                raise
     
     async def create_embeddings(
         self,

@@ -143,12 +143,12 @@ async def websocket_live_voice_call(
         session=session,
     )
 
-    def _normalize_extension(ext: str | None, default: str = ".webm") -> str:
+    def _normalize_extension(ext: str | None, default: str = ".wav") -> str:
         """Normalize extension or mime-type to a supported suffix for Whisper."""
         allowed = {".flac", ".m4a", ".mp3", ".mp4", ".mpeg", ".mpga", ".oga", ".ogg", ".wav", ".webm"}
         mime_map = {
             "audio/webm": ".webm",
-            "audio/ogg": ".ogg",
+            "audio/ogg": ".ogg", 
             "audio/oga": ".oga",
             "audio/mpeg": ".mp3",
             "audio/mp3": ".mp3",
@@ -157,6 +157,9 @@ async def websocket_live_voice_call(
             "audio/mp4": ".mp4",
             "audio/aac": ".m4a",
             "audio/flac": ".flac",
+            # Additional browser audio formats
+            "audio/webm;codecs=opus": ".webm",
+            "audio/ogg;codecs=opus": ".ogg",
         }
         if not ext:
             return default
@@ -169,10 +172,11 @@ async def websocket_live_voice_call(
         if not ext.startswith("."):
             ext = f".{ext}"
         if ext not in allowed:
-            return default
+            # Default to .wav for maximum compatibility
+            return ".wav" 
         return ext
 
-    audio_extension = _normalize_extension(state.metadata.get("audio_extension"), ".webm")
+    audio_extension = _normalize_extension(state.metadata.get("audio_extension"), ".wav")
     last_audio_process = datetime.utcnow()
 
     try:
@@ -195,7 +199,7 @@ async def websocket_live_voice_call(
                     state.push_audio(chunk)
                     # Auto-process buffered audio for low latency responses
                     now = datetime.utcnow()
-                    if len(state.audio_buffer) > 8000 or (now - last_audio_process).total_seconds() > 1.0:
+                    if len(state.audio_buffer) > 12000 or (now - last_audio_process).total_seconds() > 1.5:
                         await _process_audio_buffer(
                             websocket=websocket,
                             state=state,
@@ -270,7 +274,20 @@ async def websocket_live_voice_call(
                         file_extension=audio_extension,
                     )
                 except Exception as exc:
-                    await safe_websocket_send(websocket, {"type": "warning", "message": f"Did not catch that ({exc})"})
+                    error_msg = str(exc)
+                    if "quota exceeded" in error_msg.lower():
+                        await safe_websocket_send(websocket, {
+                            "type": "error", 
+                            "message": "Voice service temporarily unavailable due to quota limits. Please try again later."
+                        })
+                        return  # Don't continue processing
+                    elif "invalid audio format" in error_msg.lower():
+                        await safe_websocket_send(websocket, {
+                            "type": "warning", 
+                            "message": "Audio format not supported. Please check your microphone settings."
+                        })
+                    else:
+                        await safe_websocket_send(websocket, {"type": "warning", "message": f"Did not catch that ({exc})"})
                     # Proactively ask user to repeat instead of stalling the turn
                     assistant_text = "I didn't catch that. Could you please repeat?"
                     assistant_message_id = uuid4().hex
@@ -436,8 +453,12 @@ async def _generate_initial_greeting(
         )
         greeting_text = (response.get("content") or "").strip()
     except Exception as exc:
+        error_msg = str(exc)
         print(f"Error generating greeting: {exc}")
-        greeting_text = "Hello! I am ready to help you."
+        if "quota exceeded" in error_msg.lower():
+            greeting_text = "Hello! Our AI service is temporarily unavailable. Please try again later."
+        else:
+            greeting_text = "Hello! I am ready to help you."
 
     if not greeting_text:
         greeting_text = "Hello!"
@@ -469,7 +490,14 @@ async def _generate_initial_greeting(
             "message_id": assistant_message_id,
         })
     except Exception as exc:
-        await websocket.send_json({"type": "error", "message": f"TTS error: {exc}"})
+        error_msg = str(exc)
+        if "quota exceeded" in error_msg.lower():
+            await safe_websocket_send(websocket, {
+                "type": "error", 
+                "message": "Voice service temporarily unavailable. Please try again later."
+            })
+        else:
+            await safe_websocket_send(websocket, {"type": "error", "message": f"TTS error: {exc}"})
 
 
 async def _handle_agent_turn(
@@ -497,7 +525,14 @@ async def _handle_agent_turn(
         )
         assistant_text = (response.get("content") or "").strip()
     except Exception as exc:
-        await websocket.send_json({"type": "error", "message": f"LLM error: {exc}"})
+        error_msg = str(exc)
+        if "quota exceeded" in error_msg.lower():
+            await safe_websocket_send(websocket, {
+                "type": "error", 
+                "message": "AI service temporarily unavailable. Please try again later."
+            })
+        else:
+            await safe_websocket_send(websocket, {"type": "error", "message": f"Assistant error: {exc}"})
         return
 
     if not assistant_text:
@@ -531,7 +566,14 @@ async def _handle_agent_turn(
             "message_id": assistant_message_id,
         })
     except Exception as exc:
-        await websocket.send_json({"type": "error", "message": f"TTS error: {exc}"})
+        error_msg = str(exc)
+        if "quota exceeded" in error_msg.lower():
+            await safe_websocket_send(websocket, {
+                "type": "error", 
+                "message": "Voice service temporarily unavailable. Please try again later."
+            })
+        else:
+            await safe_websocket_send(websocket, {"type": "error", "message": f"TTS error: {exc}"})
 
 
 async def _process_audio_buffer(
@@ -544,7 +586,7 @@ async def _process_audio_buffer(
 ):
     """Transcribe buffered audio and trigger an assistant turn."""
     audio_bytes = state.pop_audio()
-    if not audio_bytes or len(audio_bytes) < 1024:
+    if not audio_bytes or len(audio_bytes) < 2048:  # Increased minimum size
         return
 
     try:
@@ -556,7 +598,19 @@ async def _process_audio_buffer(
         )
         user_text = (transcript.get("text") or "").strip()
     except Exception as exc:
-        await websocket.send_json({"type": "error", "message": f"STT error: {exc}"})
+        error_msg = str(exc)
+        if "quota exceeded" in error_msg.lower():
+            await safe_websocket_send(websocket, {
+                "type": "error", 
+                "message": "Voice service temporarily unavailable. Please try again later."
+            })
+        elif "invalid audio format" in error_msg.lower():
+            await safe_websocket_send(websocket, {
+                "type": "warning", 
+                "message": "Audio format issue. Please check your microphone."
+            })
+        else:
+            await safe_websocket_send(websocket, {"type": "error", "message": f"STT error: {exc}"})
         return
 
     if not user_text:
