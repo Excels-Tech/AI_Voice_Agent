@@ -145,36 +145,10 @@ async def websocket_live_voice_call(
 
     def _normalize_extension(ext: str | None, default: str = ".wav") -> str:
         """Normalize extension or mime-type to a supported suffix for Whisper."""
-        allowed = {".flac", ".m4a", ".mp3", ".mp4", ".mpeg", ".mpga", ".oga", ".ogg", ".wav", ".webm"}
-        mime_map = {
-            "audio/webm": ".webm",
-            "audio/ogg": ".ogg", 
-            "audio/oga": ".oga",
-            "audio/mpeg": ".mp3",
-            "audio/mp3": ".mp3",
-            "audio/wav": ".wav",
-            "audio/x-wav": ".wav",
-            "audio/mp4": ".mp4",
-            "audio/aac": ".m4a",
-            "audio/flac": ".flac",
-            # Additional browser audio formats
-            "audio/webm;codecs=opus": ".webm",
-            "audio/ogg;codecs=opus": ".ogg",
-        }
-        if not ext:
-            return default
-        ext = ext.strip().lower()
-        if not ext:
-            return default
-        # Map mime-type to extension if necessary
-        if "/" in ext:
-            ext = mime_map.get(ext, default)
-        if not ext.startswith("."):
-            ext = f".{ext}"
-        if ext not in allowed:
-            # Default to .wav for maximum compatibility
-            return ".wav" 
-        return ext
+        # Force WAV for all audio to avoid codec compatibility issues
+        # Even though OpenAI supports other formats, WebM and other containers
+        # can have incompatible codecs that cause 400 errors
+        return ".wav"
 
     audio_extension = _normalize_extension(state.metadata.get("audio_extension"), ".wav")
     last_audio_process = datetime.utcnow()
@@ -465,10 +439,10 @@ async def _generate_initial_greeting(
     try:
         # Construct a prompt specifically for the greeting
         messages = [
-            {"role": "system", "content": state.system_prompt},
+            {"role": "system", "content": "You are a helpful AI assistant. Respond with EXACTLY 5-6 words only. Be brief and welcoming."},
             {
                 "role": "user",
-                "content": "The call has just started. Please introduce yourself and greet the user according to your instructions. Keep it brief and welcoming.",
+                "content": "Say a very short greeting to start the call. Maximum 6 words.",
             },
         ]
 
@@ -476,16 +450,16 @@ async def _generate_initial_greeting(
             messages=messages,
             model=state.model,
             temperature=0.55,
-            max_tokens=80,
+            max_tokens=15,  # Reduced to enforce brevity
         )
         greeting_text = (response.get("content") or "").strip()
     except Exception as exc:
         error_msg = str(exc)
         print(f"Error generating greeting: {exc}")
         if "quota exceeded" in error_msg.lower():
-            greeting_text = "Hello! Our AI service is temporarily unavailable. Please try again later."
+            greeting_text = "Hello! Service unavailable."
         else:
-            greeting_text = "Hello! I am ready to help you."
+            greeting_text = "Hi! How can I help?"
 
     if not greeting_text:
         greeting_text = "Hello!"

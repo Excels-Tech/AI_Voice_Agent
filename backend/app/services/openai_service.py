@@ -153,6 +153,11 @@ class OpenAIService:
             if file_extension not in valid_extensions:
                 file_extension = ".wav"  # Default fallback
                 print(f"Warning: Invalid audio extension, defaulting to .wav")
+            
+            # Force WAV for WebM files due to codec compatibility issues
+            if file_extension == ".webm":
+                file_extension = ".wav"
+                print(f"Info: Converting WebM to WAV for better compatibility")
 
             import tempfile
             import os
