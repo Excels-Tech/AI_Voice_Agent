@@ -7,7 +7,7 @@ This is a **React + TypeScript + Vite** web application for an AI Meeting Voice 
 
 ### Production Dependencies (43 packages)
 - **React Ecosystem**: react (^18.3.1), react-dom (^18.3.1)
-- **UI Components (Radix UI)**: 
+- **UI Components (Radix UI)**:
   - accordion, alert-dialog, aspect-ratio, avatar, checkbox
   - collapsible, context-menu, dialog, dropdown-menu, hover-card
   - label, menubar, navigation-menu, popover, progress
@@ -17,7 +17,7 @@ This is a **React + TypeScript + Vite** web application for an AI Meeting Voice 
 - **Charts & Visualization**: recharts (^2.15.2)
 - **Date Picker**: react-day-picker (^8.10.1)
 - **Icons**: lucide-react (^0.487.0)
-- **UI Utilities**: 
+- **UI Utilities**:
   - class-variance-authority (^0.7.1)
   - clsx, tailwind-merge
   - cmdk (^1.1.1)
@@ -34,54 +34,56 @@ This is a **React + TypeScript + Vite** web application for an AI Meeting Voice 
 - **Build Tool**: vite (6.4.1)
 - **React Plugin**: @vitejs/plugin-react-swc (^3.10.2)
 
-## Configuration Files Created
-
-1. **tsconfig.json** - TypeScript configuration
-2. **tsconfig.node.json** - TypeScript configuration for Vite config
+## Configuration Files
+- `frontend/tsconfig.json` - TypeScript configuration
+- `frontend/tsconfig.node.json` - TypeScript configuration for Vite config
+- `frontend/vite.config.ts` - Vite build/dev configuration (outDir `build`, dev port 3000)
 
 ## Project Structure
 ```
-AI Meeting Voice Agent Workflow/
-├── index.html
-├── package.json
-├── tsconfig.json
-├── tsconfig.node.json
-├── vite.config.ts
-├── README.md
-└── src/
-    ├── App.tsx
-    ├── main.tsx
-    ├── index.css (Tailwind CSS pre-compiled v4.1.3)
-    ├── components/ (44+ React components)
-    ├── guidelines/
-    └── styles/
+AI_Voice_Agent/
+├── backend/                # FastAPI backend (serves static frontend build from backend/static/frontend)
+├── frontend/               # New Vite frontend source
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── src/                # React components, styles, utilities
+└── build.sh                # Helper to build frontend and copy into backend/static/frontend
 ```
 
 ## Running the Project
 
-### Development Server
+### Development Server (frontend)
 ```bash
+cd frontend
+npm install
 npm run dev
 ```
-- Server URL: http://localhost:3001/ (or 3000 if available)
+- Server URL: http://localhost:3000 (configure in `frontend/vite.config.ts`)
 - Features hot module replacement (HMR)
 
-### Build for Production
+### Build for Production (served by backend)
 ```bash
+cd frontend
 npm run build
+cd ..
+rm -rf backend/static/frontend
+mkdir -p backend/static/frontend
+cp -r frontend/build/* backend/static/frontend/
 ```
+Or run `./build.sh` from the repo root to build both backend deps and the frontend, then copy automatically.
 
 ## Notes
 
-- **CSS Framework**: Uses pre-compiled Tailwind CSS v4.1.3 (no build step needed)
-- **Port**: Development server runs on port 3001 (port 3000 was in use)
-- **Security**: All security vulnerabilities fixed
-- **Module System**: ESNext modules with bundler resolution
-- **React Version**: 18.3.1 with modern concurrent features
+- **CSS Framework**: Uses pre-compiled Tailwind CSS v4.1.3 (no additional build step needed).
+- **Port**: Development server runs on port 3000.
+- **Security**: All security vulnerabilities fixed.
+- **Module System**: ESNext modules with bundler resolution.
+- **React Version**: 18.3.1 with modern concurrent features.
 
-## Available Scripts
+## Available Scripts (from `frontend/`)
 - `npm run dev` - Start development server
-- `npm run build` - Build for production
+- `npm run build` - Build for production (outputs to `frontend/build`)
 
 ## Features
 Based on the component structure, this application includes:

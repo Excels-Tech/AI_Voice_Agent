@@ -27,15 +27,24 @@ def _create_engine(db_url: str) -> "Engine":
     if db_url.startswith("postgresql://") and "+psycopg" not in db_url:
         db_url = db_url.replace("postgresql://", "postgresql+psycopg://", 1)
 
-    engine_kwargs = {
-        "echo": settings.SQLALCHEMY_ECHO,
-        "pool_pre_ping": True,
-        "pool_size": 10,
-        "max_overflow": 20,
-    }
-    connect_args = {
-        "connect_timeout": settings.DB_CONNECT_TIMEOUT,
-    }
+    # Adjust engine options per driver so local SQLite works without postgres-only args
+    engine_kwargs = {"echo": settings.SQLALCHEMY_ECHO}
+    connect_args = {}
+
+    if db_url.startswith("sqlite"):
+        # SQLite does not support connect_timeout/pooling args
+        connect_args = {"check_same_thread": False}
+    else:
+        engine_kwargs.update(
+            {
+                "pool_pre_ping": True,
+                "pool_size": 10,
+                "max_overflow": 20,
+            }
+        )
+        connect_args = {
+            "connect_timeout": settings.DB_CONNECT_TIMEOUT,
+        }
 
     return create_engine(
         db_url,

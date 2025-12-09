@@ -125,7 +125,7 @@ async def health_check():
     }
 
 
-# Serve built frontend (if present) from backend/app/static/frontend
+# Serve built frontend (if present) from backend/static/frontend
 frontend_dir = static_dir / "frontend"
 if frontend_dir.exists():
     logger.info("Frontend build detected at %s", frontend_dir)

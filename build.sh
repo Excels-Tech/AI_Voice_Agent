@@ -12,14 +12,20 @@ which gunicorn || echo "WARNING: gunicorn not found in PATH"
 python -c "import gunicorn; print(f'Gunicorn version: {gunicorn.__version__}')" || echo "ERROR: Cannot import gunicorn"
 
 echo "Installing Node.js dependencies..."
-npm ci || npm install
+pushd frontend > /dev/null
+if [ -f package-lock.json ]; then
+  npm ci
+else
+  npm install
+fi
 
 echo "Building frontend..."
 npm run build
+popd > /dev/null
 
 echo "Copying frontend build to backend static folder..."
 rm -rf backend/static/frontend || true
 mkdir -p backend/static/frontend
-cp -r dist/* backend/static/frontend/
+cp -r frontend/build/* backend/static/frontend/
 
 echo "Build completed successfully!"
