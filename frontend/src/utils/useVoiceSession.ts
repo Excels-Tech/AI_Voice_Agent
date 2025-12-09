@@ -153,8 +153,10 @@ export function useVoiceSession() {
           throw new Error(body.detail || `HTTP ${res.status}`);
         }
         const data = (await res.json()) as SessionInfo;
-        const wsUrlBase = apiBase.replace(/^http/, "ws");
-        const ws = new WebSocket(`${wsUrlBase}${data.websocket_path}?token=${data.session_token}`);
+        const wsUrl = new URL(data.websocket_path, apiBase);
+        wsUrl.protocol = wsUrl.protocol === "https:" ? "wss:" : "ws:";
+        wsUrl.searchParams.set("token", data.session_token);
+        const ws = new WebSocket(wsUrl.toString());
         wsRef.current = ws;
 
         ws.onopen = async () => {
