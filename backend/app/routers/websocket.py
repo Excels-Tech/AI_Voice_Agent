@@ -164,6 +164,7 @@ async def websocket_live_voice_call(
         return ext
 
     audio_extension = _normalize_extension(state.metadata.get("audio_extension"), ".webm")
+    last_audio_process = datetime.utcnow()
 
     try:
         while True:
@@ -183,6 +184,17 @@ async def websocket_live_voice_call(
                     audio_extension = _normalize_extension(payload.get("file_extension"), audio_extension)
                     state.metadata["audio_extension"] = audio_extension
                     state.push_audio(chunk)
+                    # Auto-process buffered audio for low latency responses
+                    now = datetime.utcnow()
+                    if len(state.audio_buffer) > 8000 or (now - last_audio_process).total_seconds() > 1.0:
+                        await _process_audio_buffer(
+                            websocket=websocket,
+                            state=state,
+                            call_log=call_log,
+                            session=session,
+                            audio_extension=audio_extension,
+                        )
+                        last_audio_process = datetime.utcnow()
                 except Exception:
                     await websocket.send_json({"type": "error", "message": "Invalid audio chunk"})
                 continue
@@ -510,6 +522,51 @@ async def _handle_agent_turn(
         })
     except Exception as exc:
         await websocket.send_json({"type": "error", "message": f"TTS error: {exc}"})
+
+
+async def _process_audio_buffer(
+    *,
+    websocket: WebSocket,
+    state: CallSessionState,
+    call_log: CallLog,
+    session: Session,
+    audio_extension: str,
+):
+    """Transcribe buffered audio and trigger an assistant turn."""
+    audio_bytes = state.pop_audio()
+    if not audio_bytes or len(audio_bytes) < 1024:
+        return
+
+    try:
+        whisper_language = (state.language or "en").split("-")[0]
+        transcript = await openai_service.speech_to_text(
+            audio_file=audio_bytes,
+            language=whisper_language,
+            file_extension=audio_extension,
+        )
+        user_text = (transcript.get("text") or "").strip()
+    except Exception as exc:
+        await websocket.send_json({"type": "error", "message": f"STT error: {exc}"})
+        return
+
+    if not user_text:
+        return
+
+    user_message_id = uuid4().hex
+    await websocket.send_json({
+        "type": "transcript",
+        "role": "user",
+        "text": user_text,
+        "message_id": user_message_id,
+    })
+    await _handle_agent_turn(
+        websocket=websocket,
+        user_text=user_text,
+        user_message_id=user_message_id,
+        call_log=call_log,
+        state=state,
+        session=session,
+    )
 
 
 # Helper function to send notifications (can be called from other parts of the app)

@@ -5,6 +5,7 @@ import { Badge } from "./ui/badge";
 import { motion, AnimatePresence } from "motion/react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner@2.0.3";
+import { useVoiceSession } from "../utils/useVoiceSession";
 
 interface ActiveCallInterfaceProps {
   call: {
@@ -28,6 +29,17 @@ export function ActiveCallInterface({ call, onEndCall }: ActiveCallInterfaceProp
   const [isPaused, setIsPaused] = useState(false);
   const [duration, setDuration] = useState(0);
   const [callStatus, setCallStatus] = useState<'connecting' | 'ringing' | 'connected'>('connecting');
+  const {
+    status: voiceStatus,
+    error: voiceError,
+    transcripts,
+    assistantSpeaking,
+    startSession,
+    stopSession,
+    setMuted: setVoiceMuted,
+    setMicActive,
+    setSpeakerEnabled,
+  } = useVoiceSession();
 
   useEffect(() => {
     // Simulate call connection sequence
@@ -57,6 +69,33 @@ export function ActiveCallInterface({ call, onEndCall }: ActiveCallInterfaceProp
       if (durationInterval) clearInterval(durationInterval);
     };
   }, [call.name]);
+
+  // Kick off the live voice session once connected
+  useEffect(() => {
+    if (callStatus === 'connected') {
+      startSession({
+        agentId: Number(call.assignedAgent.id) || undefined,
+        callerName: call.name,
+        callerNumber: call.phone,
+      });
+    }
+    return () => {
+      stopSession();
+    };
+  }, [call.assignedAgent.id, call.name, call.phone, callStatus, startSession, stopSession]);
+
+  // Sync mute/pause/speaker controls to the voice client
+  useEffect(() => {
+    setVoiceMuted(isMuted);
+  }, [isMuted, setVoiceMuted]);
+
+  useEffect(() => {
+    setMicActive(!isPaused && !isMuted);
+  }, [isPaused, isMuted, setMicActive]);
+
+  useEffect(() => {
+    setSpeakerEnabled(isSpeakerOn);
+  }, [isSpeakerOn, setSpeakerEnabled]);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -92,6 +131,7 @@ export function ActiveCallInterface({ call, onEndCall }: ActiveCallInterfaceProp
                 {callStatus === 'connecting' && 'Connecting...'}
                 {callStatus === 'ringing' && 'Ringing...'}
                 {callStatus === 'connected' && 'Connected'}
+                {voiceStatus === 'error' && 'Audio Error'}
               </Badge>
             </div>
 
@@ -226,9 +266,28 @@ export function ActiveCallInterface({ call, onEndCall }: ActiveCallInterfaceProp
                     transition={{ repeat: Infinity, duration: 2 }}
                     className="size-2 rounded-full bg-emerald-400"
                   />
-                  <span className="text-sm">AI Agent actively listening...</span>
+                  <span className="text-sm">
+                    {assistantSpeaking ? "AI speaking..." : "AI listening..."}
+                  </span>
                 </div>
+                {voiceError && (
+                  <p className="text-red-400 text-xs mt-2">{voiceError}</p>
+                )}
               </motion.div>
+            )}
+
+            {/* Transcript window */}
+            {transcripts.length > 0 && (
+              <div className="mt-6 bg-slate-800/40 border border-slate-700 rounded-lg p-3 max-h-48 overflow-y-auto text-left space-y-2">
+                {transcripts.slice(-6).map((t, idx) => (
+                  <div key={`${t.messageId || idx}-${idx}`} className="text-sm">
+                    <span className="font-semibold text-slate-200 mr-2">
+                      {t.role === "assistant" ? "AI" : "You"}:
+                    </span>
+                    <span className="text-slate-300">{t.text}</span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </Card>

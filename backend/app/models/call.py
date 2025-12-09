@@ -90,7 +90,7 @@ class CallInitiate(SQLModel):
 
 class CallSessionCreate(SQLModel):
     """Schema for creating a live voice session."""
-    agent_id: int
+    agent_id: Optional[int] = None
     caller_name: Optional[str] = None
     caller_number: Optional[str] = None
     language: Optional[str] = None

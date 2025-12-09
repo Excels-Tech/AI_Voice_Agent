@@ -19,6 +19,7 @@ from app.models.call import (
 from app.models.agent import Agent
 from app.services.call_sessions import call_session_manager
 from app.services.language import resolve_language_code
+from app.models.workspace import Workspace
 
 router = APIRouter()
 
@@ -198,6 +199,89 @@ async def create_live_call_session(
             "agent_type": agent.agent_type,
             "workspace_id": agent.workspace_id,
             "call_id": call_log.id,
+        },
+    )
+
+    expires_at = session_state.created_at + call_session_manager.default_ttl
+    return CallSessionResponse(
+        session_id=session_state.id,
+        session_token=session_state.token,
+        call_id=call_log.id,
+        agent_id=agent.id,
+        workspace_id=agent.workspace_id,
+        websocket_path=f"/ws/calls/live/{session_state.id}",
+        expires_at=expires_at,
+    )
+
+
+@router.post("/sessions/live/public", response_model=CallSessionResponse, status_code=status.HTTP_201_CREATED)
+async def create_public_live_call_session(
+    call_data: CallSessionCreate,
+    session: Session = Depends(get_session),
+):
+    """
+    Create a live voice session without authentication (demo/public).
+
+    This uses the requested agent_id if provided; otherwise picks the most recently
+    created agent. Intended for demo usage so the frontend can start a WebSocket
+    session without user auth.
+    """
+    agent: Optional[Agent] = None
+    if call_data.agent_id:
+        agent = session.get(Agent, call_data.agent_id)
+    if not agent:
+        agent = session.exec(select(Agent).order_by(Agent.id.desc())).first()
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No agents available to start a call",
+        )
+
+    call_log = CallLog(
+        workspace_id=agent.workspace_id,
+        agent_id=agent.id,
+        caller_name=call_data.caller_name or "Demo Caller",
+        caller_number=call_data.caller_number,
+        direction="inbound",
+        status="in-progress",
+        started_at=datetime.utcnow(),
+    )
+    session.add(call_log)
+    agent.total_calls = (agent.total_calls or 0) + 1
+    session.add(agent)
+    session.commit()
+    session.refresh(call_log)
+
+    system_prompts = [f"You are {agent.name}, a {agent.agent_type} AI voice agent."]
+    if agent.goal:
+        system_prompts.append(f"Primary Goal: {agent.goal}")
+    if agent.script_summary:
+        system_prompts.append(f"Script Summary: {agent.script_summary}")
+    if agent.capabilities:
+        system_prompts.append(f"Capabilities: {agent.capabilities}")
+    if agent.personality:
+        system_prompts.append(f"Personality: {agent.personality}")
+    system_prompts.append(
+        "First-turn rule: on the very first response, greet the caller, introduce yourself by name and role, "
+        "explain how you can help, and ask a brief opening question appropriate for a live call. "
+        "After that, avoid repeating the introduction unless asked."
+    )
+
+    resolved_language = resolve_language_code(call_data.language or agent.language)
+    session_state = call_session_manager.create_session(
+        call_id=call_log.id,
+        agent_id=agent.id,
+        workspace_id=agent.workspace_id,
+        language=resolved_language,
+        voice=agent.voice or "nova",
+        model=agent.model or "gpt-4o-mini",
+        system_prompt="\n".join(system_prompts),
+        metadata={
+            "agent_name": agent.name,
+            "agent_type": agent.agent_type,
+            "workspace_id": agent.workspace_id,
+            "call_id": call_log.id,
+            "public": True,
         },
     )
 
