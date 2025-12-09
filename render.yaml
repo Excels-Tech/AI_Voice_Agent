@@ -3,16 +3,15 @@ services:
     name: ai-voice-agent-backend
     env: python
     runtime: python
-    buildCommand: |
-      set -e
-      pip install --upgrade pip
-      pip install --no-cache-dir -r requirements.txt
-      cd frontend
-      if [ -f package-lock.json ]; then npm ci || npm install; else npm install; fi
-      npm run build
-      cd ..
-      rm -rf backend/static/frontend
-      mkdir -p backend/static/frontend
+    buildCommand: >
+      pip install --upgrade pip &&
+      pip install --no-cache-dir -r requirements.txt &&
+      cd frontend &&
+      (npm ci || npm install) &&
+      npm run build &&
+      cd .. &&
+      rm -rf backend/static/frontend &&
+      mkdir -p backend/static/frontend &&
       cp -r frontend/build/* backend/static/frontend
     startCommand: cd backend && python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
@@ -28,7 +27,7 @@ services:
       - key: CORS_ORIGINS
         value: '["https://your-frontend.onrender.com","http://localhost:3000"]'
       - key: NODE_VERSION
-        value: "18"
+        value: "20"
       - key: VONAGE_API_KEY
         sync: false
       - key: VONAGE_API_SECRET
