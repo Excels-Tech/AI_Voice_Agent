@@ -148,16 +148,10 @@ class OpenAIService:
             if not file_extension.startswith("."):
                 file_extension = f".{file_extension}"
             
-            # Ensure valid file extension for OpenAI Whisper
-            valid_extensions = {".flac", ".m4a", ".mp3", ".mp4", ".mpeg", ".mpga", ".oga", ".ogg", ".wav", ".webm"}
-            if file_extension not in valid_extensions:
-                file_extension = ".wav"  # Default fallback
-                print(f"Warning: Invalid audio extension, defaulting to .wav")
-            
-            # Force WAV for WebM files due to codec compatibility issues
-            if file_extension == ".webm":
+            # FORCE ALL AUDIO TO WAV TO AVOID FORMAT ISSUES
+            if file_extension != ".wav":
+                print(f"Converting {file_extension} to .wav for compatibility")
                 file_extension = ".wav"
-                print(f"Info: Converting WebM to WAV for better compatibility")
 
             import tempfile
             import os

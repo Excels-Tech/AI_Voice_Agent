@@ -175,7 +175,13 @@ async def websocket_live_voice_call(
                     if len(chunk) > 1024 * 1024:  # Skip chunks larger than 1MB
                         continue
                     
-                    audio_extension = _normalize_extension(payload.get("file_extension"), audio_extension)
+                    original_extension = payload.get("file_extension")
+                    audio_extension = _normalize_extension(original_extension, audio_extension)
+                    
+                    # Debug logging
+                    if original_extension != audio_extension:
+                        print(f"Audio extension converted: {original_extension} -> {audio_extension}")
+                    
                     state.metadata["audio_extension"] = audio_extension
                     state.push_audio(chunk)
                     
@@ -256,8 +262,13 @@ async def websocket_live_voice_call(
                 if not hasattr(state, 'last_stt_failure'):
                     state.last_stt_failure = None
                 
+                # Reset if it's been more than 30 seconds since last failure
+                if state.last_stt_failure and (datetime.utcnow() - state.last_stt_failure).total_seconds() > 30:
+                    state.stt_failures = 0
+                    state.last_stt_failure = None
+                
                 # Skip STT if too many recent failures
-                if state.stt_failures >= 3 and state.last_stt_failure and (datetime.utcnow() - state.last_stt_failure).total_seconds() < 10:
+                if state.stt_failures >= 5 and state.last_stt_failure and (datetime.utcnow() - state.last_stt_failure).total_seconds() < 15:
                     print("Skipping STT due to rate limiting")
                     continue
                 
@@ -596,9 +607,14 @@ async def _process_audio_buffer(
     if not hasattr(state, 'last_stt_failure'):
         state.last_stt_failure = None
     
-    # If we've had too many failures recently, throttle requests
-    if state.stt_failures >= 3:
-        if state.last_stt_failure and (datetime.utcnow() - state.last_stt_failure).total_seconds() < 10:
+    # If we've had too many failures recently, throttle requests  
+    # Reset if it's been more than 30 seconds since last failure
+    if state.last_stt_failure and (datetime.utcnow() - state.last_stt_failure).total_seconds() > 30:
+        state.stt_failures = 0
+        state.last_stt_failure = None
+        
+    if state.stt_failures >= 5:  # Increased threshold
+        if state.last_stt_failure and (datetime.utcnow() - state.last_stt_failure).total_seconds() < 15:  # Reduced timeout
             print(f"Rate limiting STT requests due to {state.stt_failures} recent failures")
             return
 
