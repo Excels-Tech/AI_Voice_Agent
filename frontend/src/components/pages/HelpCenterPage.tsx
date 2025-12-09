@@ -241,7 +241,13 @@ export function HelpCenterPage({ onBack }: HelpCenterPageProps) {
               Our support team is here to help you. Get in touch and we'll respond within 24 hours.
             </p>
             <div className="flex gap-4 justify-center">
-              <Button className="bg-white text-blue-600 hover:bg-blue-50">
+              <Button
+                className="bg-white text-blue-600 hover:bg-blue-50"
+                onClick={() => {
+                  // Route to support email for now
+                  window.location.href = "mailto:support@voiceai.com?subject=VoiceAI%20Support%20Request";
+                }}
+              >
                 Contact Support
               </Button>
               <Button 
