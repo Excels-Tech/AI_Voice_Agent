@@ -227,7 +227,9 @@ export function Dashboard({ user, onLogout }: DashboardProps) {
   const startLiveCall = async () => {
     try {
       setCreatingCall(true);
-      const res = await fetch("/api/calls/sessions/live/public", {
+      const base = (import.meta.env.VITE_API_BASE as string | undefined) || "";
+      const normalized = base.replace(/\/+$/, "");
+      const res = await fetch(`${normalized}/api/calls/sessions/live/public`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

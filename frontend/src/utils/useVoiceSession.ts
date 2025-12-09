@@ -138,12 +138,13 @@ export function useVoiceSession() {
         setStatus("connecting");
         setTranscripts([]);
 
-        const res = await fetch(`${apiBase}/api/calls/sessions/live/public`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            agent_id: opts.agentId,
-            caller_name: opts.callerName,
+        const base = apiBase.replace(/\/+$/, "");
+        const res = await fetch(`${base}/api/calls/sessions/live/public`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              agent_id: opts.agentId,
+              caller_name: opts.callerName,
             caller_number: opts.callerNumber,
             language: opts.language,
           }),
@@ -153,7 +154,7 @@ export function useVoiceSession() {
           throw new Error(body.detail || `HTTP ${res.status}`);
         }
         const data = (await res.json()) as SessionInfo;
-        const wsUrl = new URL(data.websocket_path, apiBase);
+        const wsUrl = new URL(data.websocket_path, base);
         wsUrl.protocol = wsUrl.protocol === "https:" ? "wss:" : "ws:";
         wsUrl.searchParams.set("token", data.session_token);
         const ws = new WebSocket(wsUrl.toString());
