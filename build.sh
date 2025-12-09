@@ -14,7 +14,7 @@ python -c "import gunicorn; print(f'Gunicorn version: {gunicorn.__version__}')" 
 echo "Installing Node.js dependencies..."
 pushd frontend > /dev/null
 if [ -f package-lock.json ]; then
-  npm ci
+  npm ci || npm install
 else
   npm install
 fi
