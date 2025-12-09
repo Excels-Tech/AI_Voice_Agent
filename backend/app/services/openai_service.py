@@ -128,9 +128,22 @@ class OpenAIService:
     ) -> Dict[str, Any]:
         """Transcribe audio to text using Whisper."""
         try:
-            # Guard tiny payloads to avoid OpenAI 400s
-            if not audio_file or len(audio_file) < 1024:  # Increased minimum size
+            # Enhanced audio validation
+            if not audio_file or len(audio_file) < 1024:  # Minimum size check
                 raise ValueError("Audio too short to transcribe")
+            
+            # Check for reasonable maximum size (50MB)
+            if len(audio_file) > 50 * 1024 * 1024:
+                raise ValueError("Audio file too large")
+                
+            # Basic audio data validation - check it's not just empty/null bytes
+            if audio_file.count(b'\x00') == len(audio_file):
+                raise ValueError("Audio data appears to be empty or corrupted")
+                
+            # Check for minimal audio content (at least some variation in bytes)
+            unique_bytes = len(set(audio_file[:min(1024, len(audio_file))]))
+            if unique_bytes < 5:  # Too uniform, likely not real audio
+                raise ValueError("Audio data appears to be invalid or corrupted")
 
             if not file_extension.startswith("."):
                 file_extension = f".{file_extension}"
@@ -139,6 +152,7 @@ class OpenAIService:
             valid_extensions = {".flac", ".m4a", ".mp3", ".mp4", ".mpeg", ".mpga", ".oga", ".ogg", ".wav", ".webm"}
             if file_extension not in valid_extensions:
                 file_extension = ".wav"  # Default fallback
+                print(f"Warning: Invalid audio extension, defaulting to .wav")
 
             import tempfile
             import os
@@ -148,32 +162,50 @@ class OpenAIService:
                 temp_file_path = temp_file.name
 
             def _transcribe(path: str):
+                # Additional file size check after writing
+                file_size = os.path.getsize(path)
+                if file_size < 1024:
+                    raise ValueError("Written audio file too small")
+                    
                 with open(path, "rb") as audio:
                     params = {
                         "model": "whisper-1",
                         "file": audio,
                     }
-                    if language:
+                    if language and language != "auto":
                         params["language"] = language
                     return self.client.audio.transcriptions.create(**params)
 
             response = await asyncio.to_thread(_transcribe, temp_file_path)
-            os.unlink(temp_file_path)
+            
+            # Clean up temp file
+            try:
+                os.unlink(temp_file_path)
+            except Exception:
+                pass  # Ignore cleanup errors
 
             return {
                 "text": response.text,
             }
         except Exception as e:
             error_str = str(e)
+            
+            # Enhanced logging for debugging
             print(f"OpenAI STT error: {e}")
+            print(f"Audio file size: {len(audio_file) if audio_file else 'None'} bytes")
+            print(f"File extension: {file_extension}")
+            if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                print(f"OpenAI response details: {e.response.text}")
             
             # Handle specific OpenAI errors gracefully
             if "insufficient_quota" in error_str or "exceeded your current quota" in error_str:
                 raise ValueError("OpenAI quota exceeded. Please check your billing details.")
-            elif "Invalid file format" in error_str:
-                raise ValueError(f"Invalid audio format. Please ensure audio is in a supported format: {valid_extensions}")
+            elif "Invalid file format" in error_str or "invalid_file_format" in error_str:
+                raise ValueError(f"Invalid audio format. File extension: {file_extension}, Size: {len(audio_file)} bytes")
             elif "Audio too short" in error_str or "minimum duration" in error_str:
                 raise ValueError("Audio segment too short to transcribe")
+            elif "corrupted" in error_str.lower() or "invalid" in error_str.lower():
+                raise ValueError("Audio data appears to be corrupted or invalid")
             else:
                 raise
     

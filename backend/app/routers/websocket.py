@@ -194,9 +194,17 @@ async def websocket_live_voice_call(
                     continue
                 try:
                     chunk = base64.b64decode(chunk_b64)
+                    
+                    # Validate audio chunk before adding to buffer
+                    if len(chunk) < 100:  # Skip tiny chunks that are likely noise
+                        continue
+                    if len(chunk) > 1024 * 1024:  # Skip chunks larger than 1MB
+                        continue
+                    
                     audio_extension = _normalize_extension(payload.get("file_extension"), audio_extension)
                     state.metadata["audio_extension"] = audio_extension
                     state.push_audio(chunk)
+                    
                     # Auto-process buffered audio for low latency responses
                     now = datetime.utcnow()
                     if len(state.audio_buffer) > 12000 or (now - last_audio_process).total_seconds() > 1.5:
@@ -267,13 +275,32 @@ async def websocket_live_voice_call(
                     continue
 
                 whisper_language = state.language.split("-")[0]
+                
+                # Rate limiting: check for recent failures
+                if not hasattr(state, 'stt_failures'):
+                    state.stt_failures = 0
+                if not hasattr(state, 'last_stt_failure'):
+                    state.last_stt_failure = None
+                
+                # Skip STT if too many recent failures
+                if state.stt_failures >= 3 and state.last_stt_failure and (datetime.utcnow() - state.last_stt_failure).total_seconds() < 10:
+                    print("Skipping STT due to rate limiting")
+                    continue
+                
                 try:
                     transcription = await openai_service.speech_to_text(
                         audio_file=audio_bytes,
                         language=whisper_language,
                         file_extension=audio_extension,
                     )
+                    # Reset failure count on success
+                    state.stt_failures = 0
+                    state.last_stt_failure = None
                 except Exception as exc:
+                    # Increment failure count
+                    state.stt_failures += 1
+                    state.last_stt_failure = datetime.utcnow()
+                    
                     error_msg = str(exc)
                     if "quota exceeded" in error_msg.lower():
                         await safe_websocket_send(websocket, {
@@ -589,6 +616,18 @@ async def _process_audio_buffer(
     if not audio_bytes or len(audio_bytes) < 2048:  # Increased minimum size
         return
 
+    # Rate limiting: track failed attempts
+    if not hasattr(state, 'stt_failures'):
+        state.stt_failures = 0
+    if not hasattr(state, 'last_stt_failure'):
+        state.last_stt_failure = None
+    
+    # If we've had too many failures recently, throttle requests
+    if state.stt_failures >= 3:
+        if state.last_stt_failure and (datetime.utcnow() - state.last_stt_failure).total_seconds() < 10:
+            print(f"Rate limiting STT requests due to {state.stt_failures} recent failures")
+            return
+
     try:
         whisper_language = (state.language or "en").split("-")[0]
         transcript = await openai_service.speech_to_text(
@@ -597,17 +636,26 @@ async def _process_audio_buffer(
             file_extension=audio_extension,
         )
         user_text = (transcript.get("text") or "").strip()
+        
+        # Reset failure count on success
+        state.stt_failures = 0
+        state.last_stt_failure = None
+        
     except Exception as exc:
+        # Increment failure count
+        state.stt_failures += 1
+        state.last_stt_failure = datetime.utcnow()
+        
         error_msg = str(exc)
         if "quota exceeded" in error_msg.lower():
             await safe_websocket_send(websocket, {
                 "type": "error", 
                 "message": "Voice service temporarily unavailable. Please try again later."
             })
-        elif "invalid audio format" in error_msg.lower():
+        elif "invalid audio format" in error_msg.lower() or "corrupted" in error_msg.lower():
             await safe_websocket_send(websocket, {
                 "type": "warning", 
-                "message": "Audio format issue. Please check your microphone."
+                "message": "Audio quality issue detected. Please speak more clearly or check your microphone."
             })
         else:
             await safe_websocket_send(websocket, {"type": "error", "message": f"STT error: {exc}"})
