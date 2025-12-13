@@ -39,53 +39,6 @@ interface AgentListProps {
 }
 
 export function AgentList({ onCreateNew }: AgentListProps) {
-  const demoAgents = [
-    {
-      id: 1,
-      name: "Sales Agent",
-      type: "sales",
-      status: "active",
-      calls: 234,
-      deployment: "phone",
-      phoneNumber: "+1 (555) 123-4567",
-      language: "English (US)",
-      voice: "Nova",
-    },
-    {
-      id: 2,
-      name: "Support Agent",
-      type: "support",
-      status: "active",
-      calls: 189,
-      deployment: "both",
-      phoneNumber: "+1 (555) 234-5678",
-      language: "English (UK)",
-      voice: "Alloy",
-    },
-    {
-      id: 3,
-      name: "Lead Qualifier",
-      type: "lead",
-      status: "paused",
-      calls: 156,
-      deployment: "widget",
-      phoneNumber: "N/A",
-      language: "Spanish",
-      voice: "Echo",
-    },
-    {
-      id: 4,
-      name: "Appointment Setter",
-      type: "appointment",
-      status: "active",
-      calls: 98,
-      deployment: "phone",
-      phoneNumber: "+1 (555) 345-6789",
-      language: "French",
-      voice: "Onyx",
-    },
-  ];
-
   const [searchQuery, setSearchQuery] = useState("");
   const [testAgent, setTestAgent] = useState<string | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
@@ -95,7 +48,7 @@ export function AgentList({ onCreateNew }: AgentListProps) {
   const [apiAgent, setApiAgent] = useState<any | null>(null);
   const [advancedAgent, setAdvancedAgent] = useState<any | null>(null);
   const [integrationsAgent, setIntegrationsAgent] = useState<any | null>(null);
-  const [agents, setAgents] = useState<any[]>(demoAgents);
+  const [agents, setAgents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -104,24 +57,19 @@ export function AgentList({ onCreateNew }: AgentListProps) {
     const apiToken = import.meta.env.VITE_API_TOKEN as string | undefined;
     const workspaceId = Number(import.meta.env.VITE_WORKSPACE_ID || 1);
 
-    if (!apiToken) {
-      // No token configured; stay in demo mode.
-      return;
-    }
-
     const base = apiBase.replace(/\/+$/, "");
 
     const fetchAgents = async () => {
       try {
         setIsLoading(true);
-        const response = await fetch(
-          `${base}/api/agents?workspace_id=${workspaceId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${apiToken}`,
-            },
-          },
-        );
+        const headers: HeadersInit = {};
+        if (apiToken) {
+          headers["Authorization"] = `Bearer ${apiToken}`;
+        }
+
+        const response = await fetch(`${base}/api/agents?workspace_id=${workspaceId}`, {
+          headers,
+        });
 
         if (!response.ok) {
           let message = `Failed to load agents (HTTP ${response.status})`;

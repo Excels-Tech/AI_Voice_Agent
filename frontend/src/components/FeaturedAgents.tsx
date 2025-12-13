@@ -281,30 +281,24 @@ export function FeaturedAgents({ onDeploy }: FeaturedAgentsProps) {
     const apiToken = import.meta.env.VITE_API_TOKEN as string | undefined;
     const workspaceId = Number(import.meta.env.VITE_WORKSPACE_ID || 1);
 
-    // If no API token is configured, fall back to local/demo behavior.
-    if (!apiToken) {
-      onDeploy(agent);
-      toast.success(`${agent.name} deployed in demo mode (no API token set)`);
-      return;
-    }
-
     const base = apiBase.replace(/\/+$/, "");
 
     try {
       setDeployingId(agent.id);
-      const response = await fetch(
-        `${base}/api/featured-agents/${agent.id}/deploy`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiToken}`,
-          },
-          body: JSON.stringify({
-            workspace_id: workspaceId,
-          }),
-        },
-      );
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+      if (apiToken) {
+        headers["Authorization"] = `Bearer ${apiToken}`;
+      }
+
+      const response = await fetch(`${base}/api/featured-agents/${agent.id}/deploy`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          workspace_id: workspaceId,
+        }),
+      });
 
       if (!response.ok) {
         let message = `Failed to deploy ${agent.name} (HTTP ${response.status})`;
