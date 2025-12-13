@@ -72,59 +72,8 @@ def seed_database(session: Session) -> None:
     )
     session.add(payment_method)
 
-    agents = [
-        Agent(
-            workspace_id=workspace.id,
-            name="Sales Agent",
-            description="Handles inbound demo requests and outbound follow-ups.",
-            agent_type="sales",
-            status="active",
-            deployment_channels=["phone", "web-widget"],
-            voice="Nova",
-            language="en-US",
-            script_summary="Qualify leads and book demos.",
-            goal="Drive qualified demos for the sales team.",
-            phone_number="+1 (555) 111-2222",
-            average_handle_time=210,
-            sentiment_score=0.82,
-            capabilities={"languages": ["English"], "tasks": ["qualification", "scheduling"]},
-        ),
-        Agent(
-            workspace_id=workspace.id,
-            name="Support Agent",
-            description="Level 1 support triage and FAQ resolution.",
-            agent_type="support",
-            status="active",
-            deployment_channels=["phone"],
-            voice="Alloy",
-            language="en-GB",
-            script_summary="Resolve tier-1 tickets and escalate incidents.",
-            goal="Reduce mean time to resolution.",
-            phone_number="+1 (555) 333-4444",
-            average_handle_time=320,
-            sentiment_score=0.74,
-            capabilities={"channels": ["phone"], "integrations": ["Zendesk"]},
-        ),
-        Agent(
-            workspace_id=workspace.id,
-            name="Lead Qualifier",
-            description="Outbound sequences to nurture inbound forms.",
-            agent_type="marketing",
-            status="paused",
-            deployment_channels=["phone"],
-            voice="Echo",
-            language="es-ES",
-            script_summary="Spanish-language qualification script.",
-            goal="Improve LATAM coverage.",
-            phone_number=None,
-            average_handle_time=180,
-            sentiment_score=0.7,
-            capabilities={"languages": ["Spanish"], "tasks": ["discovery"]},
-        ),
-    ]
-    session.add_all(agents)
-    session.flush()
-
+    # Do not auto-create any agents; agents should only exist
+    # when an owner explicitly deploys or creates them.
     now = datetime.utcnow()
     call_logs = [
         CallLog(

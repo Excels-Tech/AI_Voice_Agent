@@ -67,7 +67,8 @@ async def register(
     session.commit()
     session.refresh(workspace)
     
-    # Add user as owner of the workspace
+    # Add user as owner of the workspace (no auto-created agents;
+    # owners explicitly create or deploy agents they need).
     membership = WorkspaceMembership(
         workspace_id=workspace.id,
         user_id=user.id,
@@ -76,27 +77,6 @@ async def register(
         joined_at=datetime.utcnow(),
     )
     session.add(membership)
-    session.commit()
-
-    # Create a ready-to-use demo agent so new users can talk to the system immediately
-    demo_agent = Agent(
-        workspace_id=workspace.id,
-        name="VoiceAI Demo Agent",
-        description="Starter agent that can answer general questions and demo calls.",
-        agent_type="sales",
-        status="active",
-        voice="Nova",
-        language="en-US",
-        model="gpt-4",
-        script_summary="Greet callers, collect context, and propose next steps or a meeting.",
-        goal="Help callers quickly understand capabilities and schedule a meeting.",
-        deployment_channels=["phone", "chat"],
-        voice_settings={"tone": "friendly", "pace": "steady"},
-        llm_settings={"temperature": 0.5, "top_p": 0.9},
-        capabilities={"languages": ["English"], "tasks": ["faq", "scheduling"]},
-        personality={"traits": ["helpful", "concise", "professional"]},
-    )
-    session.add(demo_agent)
     session.commit()
     
     return user
