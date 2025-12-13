@@ -43,7 +43,7 @@ export function AuthModal({ mode, onClose, onSuccess }: AuthModalProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validate()) {
@@ -52,14 +52,76 @@ export function AuthModal({ mode, onClose, onSuccess }: AuthModalProps) {
 
     setIsLoading(true);
 
-    // Simulate API call
-    setTimeout(() => {
+    const apiBase =
+      (import.meta.env.VITE_API_BASE as string | undefined) || window.location.origin;
+    const base = apiBase.replace(/\/+$/, "");
+
+    try {
+      if (currentMode === "login") {
+        const body = new URLSearchParams();
+        body.set("username", email);
+        body.set("password", password);
+
+        const res = await fetch(`${base}/api/auth/login`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: body.toString(),
+        });
+
+        if (!res.ok) {
+          let message = "Login failed";
+          try {
+            const data = await res.json();
+            if (data?.detail) {
+              message =
+                Array.isArray(data.detail) && data.detail.length > 0
+                  ? data.detail.map((d: any) => d.msg || d).join(", ")
+                  : data.detail;
+            }
+          } catch {
+            // ignore JSON parse errors
+          }
+          toast.error(message);
+          setIsLoading(false);
+          return;
+        }
+
+        const tokenData = await res.json();
+        if (tokenData?.access_token) {
+          localStorage.setItem("voiceai_access_token", tokenData.access_token);
+        }
+
+        // Fetch basic user info
+        let displayName = email.split("@")[0];
+        try {
+          const meRes = await fetch(`${base}/api/auth/me`, {
+            headers: {
+              Authorization: `Bearer ${tokenData.access_token}`,
+            },
+          });
+          if (meRes.ok) {
+            const me = await meRes.json();
+            displayName = me.name || me.email || displayName;
+          }
+        } catch {
+          // non-critical; keep fallback displayName
+        }
+
+        toast.success("Welcome back!");
+        onSuccess({ name: displayName, email });
+      } else {
+        // For signup, keep the existing simulated behavior for now.
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        toast.success("Account created successfully!");
+        onSuccess({ name: name || email.split("@")[0], email });
+      }
+    } catch (error: any) {
+      toast.error(error?.message || "Unexpected error during authentication");
+    } finally {
       setIsLoading(false);
-      toast.success(
-        currentMode === "login" ? "Welcome back!" : "Account created successfully!"
-      );
-      onSuccess({ name: name || email.split("@")[0], email });
-    }, 1000);
+    }
   };
 
   const handleSocialLogin = (provider: string) => {

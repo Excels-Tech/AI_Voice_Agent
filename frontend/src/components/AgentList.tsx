@@ -54,7 +54,12 @@ export function AgentList({ onCreateNew }: AgentListProps) {
   useEffect(() => {
     const apiBase =
       (import.meta.env.VITE_API_BASE as string | undefined) || window.location.origin;
-    const apiToken = import.meta.env.VITE_API_TOKEN as string | undefined;
+    const storedToken =
+      typeof window !== "undefined"
+        ? localStorage.getItem("voiceai_access_token")
+        : null;
+    const apiToken =
+      storedToken || (import.meta.env.VITE_API_TOKEN as string | undefined);
     const workspaceId = Number(import.meta.env.VITE_WORKSPACE_ID || 1);
 
     const base = apiBase.replace(/\/+$/, "");
