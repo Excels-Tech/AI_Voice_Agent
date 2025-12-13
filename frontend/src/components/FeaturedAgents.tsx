@@ -34,6 +34,7 @@ interface FeaturedAgentsProps {
 
 export function FeaturedAgents({ onDeploy }: FeaturedAgentsProps) {
   const [selectedAgent, setSelectedAgent] = useState<any | null>(null);
+  const [deployingId, setDeployingId] = useState<string | null>(null);
 
   const featuredAgents = [
     {
@@ -274,6 +275,65 @@ export function FeaturedAgents({ onDeploy }: FeaturedAgentsProps) {
     },
   ];
 
+  const deployFeaturedAgent = async (agent: any) => {
+    const apiBase =
+      (import.meta.env.VITE_API_BASE as string | undefined) || window.location.origin;
+    const apiToken = import.meta.env.VITE_API_TOKEN as string | undefined;
+    const workspaceId = Number(import.meta.env.VITE_WORKSPACE_ID || 1);
+
+    // If no API token is configured, fall back to local/demo behavior.
+    if (!apiToken) {
+      onDeploy(agent);
+      toast.success(`${agent.name} deployed in demo mode (no API token set)`);
+      return;
+    }
+
+    const base = apiBase.replace(/\/+$/, "");
+
+    try {
+      setDeployingId(agent.id);
+      const response = await fetch(
+        `${base}/api/featured-agents/${agent.id}/deploy`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiToken}`,
+          },
+          body: JSON.stringify({
+            workspace_id: workspaceId,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        let message = `Failed to deploy ${agent.name} (HTTP ${response.status})`;
+        try {
+          const body = await response.json();
+          if (body?.detail) {
+            message = Array.isArray(body.detail)
+              ? body.detail.map((d: any) => d.msg || d).join(", ")
+              : body.detail;
+          }
+        } catch {
+          // ignore JSON parse errors; keep default message
+        }
+        toast.error(message);
+        return;
+      }
+
+      const createdAgent = await response.json();
+      onDeploy(createdAgent);
+      toast.success(`${createdAgent.name} deployed to workspace ${createdAgent.workspace_id}`);
+    } catch (error: any) {
+      toast.error(
+        error?.message || `Unexpected error deploying ${agent.name}. Check API base/token.`,
+      );
+    } finally {
+      setDeployingId(null);
+    }
+  };
+
   const handleDeploy = (agent: any) => {
     onDeploy(agent);
     toast.success(`${agent.name} deployed successfully! 🚀`);
@@ -434,7 +494,8 @@ export function FeaturedAgents({ onDeploy }: FeaturedAgentsProps) {
                   <Button
                     size="sm"
                     className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                    onClick={() => handleDeploy(agent)}
+                    onClick={() => deployFeaturedAgent(agent)}
+                    disabled={deployingId === agent.id}
                   >
                     <Plus className="size-4 mr-1 shrink-0" />
                     <span>Deploy</span>
@@ -451,7 +512,7 @@ export function FeaturedAgents({ onDeploy }: FeaturedAgentsProps) {
         <AgentDetailsModal
           agent={selectedAgent}
           onClose={() => setSelectedAgent(null)}
-          onDeploy={handleDeploy}
+          onDeploy={deployFeaturedAgent}
         />
       )}
     </div>
