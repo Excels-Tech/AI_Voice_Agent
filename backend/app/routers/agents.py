@@ -38,7 +38,7 @@ class AgentVoiceChatResponse(SQLModel):
 @router.get("", response_model=List[AgentRead])
 async def list_agents(
     workspace_id: int = Query(...),
-    status: Optional[str] = Query(None),
+    agent_status: Optional[str] = Query(None, alias="status"),
     agent_type: Optional[str] = Query(None),
     current_user: User = Depends(get_current_active_user),
     session: Session = Depends(get_session),
@@ -62,8 +62,8 @@ async def list_agents(
     # Build query
     query = select(Agent).where(Agent.workspace_id == workspace_id)
     
-    if status:
-        query = query.where(Agent.status == status)
+    if agent_status:
+        query = query.where(Agent.status == agent_status)
     if agent_type:
         query = query.where(Agent.agent_type == agent_type)
     
