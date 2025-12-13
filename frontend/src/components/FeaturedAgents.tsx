@@ -240,6 +240,38 @@ export function FeaturedAgents({ onDeploy }: FeaturedAgentsProps) {
       },
       price: "Standard",
     },
+    {
+      id: "campaign-dialer",
+      name: "Campaign Dialer",
+      tagline: "CSV-powered outbound call campaigns",
+      description: "Specialized outbound dialer that works through CSV contact lists and lets your AI agent handle live conversations at scale.",
+      tier: "gold",
+      icon: Phone,
+      color: "from-emerald-400 to-teal-500",
+      rating: 4.8,
+      deployments: 4312,
+      features: [
+        "CSV contact list ingestion",
+        "Bulk outbound call queuing",
+        "Per-contact call logging",
+        "Agent-led conversations",
+        "Supports international numbers",
+        "Works with your telephony provider",
+      ],
+      capabilities: {
+        phone: true,
+        video: false,
+        chat: false,
+        meetings: false,
+      },
+      metrics: {
+        avgContactsPerCampaign: "250",
+        avgConnectionRate: "37%",
+        avgHandleTime: "4:15",
+        followUpRate: "62%",
+      },
+      price: "Standard",
+    },
   ];
 
   const handleDeploy = (agent: any) => {

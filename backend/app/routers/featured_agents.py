@@ -329,6 +329,60 @@ def _featured_agents_seed() -> Dict[str, FeaturedAgent]:
                 "status": "active",
             },
         },
+        {
+            "id": "campaign-dialer",
+            "name": "Campaign Dialer",
+            "tagline": "CSV-powered outbound call campaigns",
+            "description": (
+                "Specialized outbound dialer that works through CSV contact lists. "
+                "Upload a spreadsheet of leads and let the agent automatically queue outbound calls "
+                "so your telephony provider can connect prospects in real time."
+            ),
+            "tier": "gold",
+            "rating": 4.8,
+            "deployments": 4312,
+            "features": [
+                "CSV contact list ingestion",
+                "Bulk outbound call queuing",
+                "Per-contact call logging",
+                "Agent-led conversations",
+                "Supports international numbers",
+                "Works with your telephony provider",
+            ],
+            "capabilities": {"phone": True, "video": False, "chat": False, "meetings": False},
+            "metrics": {
+                "avgContactsPerCampaign": "250",
+                "avgConnectionRate": "37%",
+                "avgHandleTime": "4:15",
+                "followUpRate": "62%",
+            },
+            "price": "Standard",
+            "accent_color": "from-emerald-400 to-teal-500",
+            "template": {
+                "agent_type": "sales",
+                "voice": "Nova",
+                "language": "en-US",
+                "model": "gpt-4",
+                "script_summary": (
+                    "Outbound campaign dialer that quickly introduces the product, "
+                    "qualifies interest, and books follow-ups with leads from CSV lists."
+                ),
+                "goal": "Work through uploaded lead lists, qualify prospects, and book meetings or handoffs.",
+                "deployment_channels": ["phone"],
+                "voice_settings": {"tone": "confident", "pace": "brisk", "energy": "medium-high"},
+                "llm_settings": {"temperature": 0.35, "top_p": 0.9, "memory_window": 8},
+                "capabilities": {
+                    "csvDialer": True,
+                    "leadQualification": True,
+                    "campaignReporting": True,
+                },
+                "personality": {
+                    "traits": ["efficient", "direct", "results-focused"],
+                    "closingStyle": "assumptive-next-step",
+                },
+                "status": "active",
+            },
+        },
     ]
 
     return {entry["id"]: FeaturedAgent(**entry) for entry in data}
