@@ -200,11 +200,55 @@ export function AgentList({ onCreateNew }: AgentListProps) {
     toast.success(`${agent.name} duplicated successfully`);
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     const agent = agents.find(a => a.id === id);
-    if (confirm(`Are you sure you want to delete ${agent?.name}?`)) {
-      setAgents(agents.filter(a => a.id !== id));
-      toast.success(`${agent?.name} deleted`);
+    if (!agent) return;
+
+    if (!confirm(`Are you sure you want to delete ${agent.name}?`)) {
+      return;
+    }
+
+    const apiBase =
+      (import.meta.env.VITE_API_BASE as string | undefined) || window.location.origin;
+    const apiToken = import.meta.env.VITE_API_TOKEN as string | undefined;
+
+    // If no token, only update local state (demo mode).
+    if (!apiToken) {
+      setAgents(agents.filter((a) => a.id !== id));
+      toast.success(`${agent.name} deleted (demo only, not persisted)`);
+      return;
+    }
+
+    const base = apiBase.replace(/\/+$/, "");
+
+    try {
+      const response = await fetch(`${base}/api/agents/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+        },
+      });
+
+      if (!response.ok && response.status !== 204) {
+        let message = `Failed to delete ${agent.name} (HTTP ${response.status})`;
+        try {
+          const body = await response.json();
+          if (body?.detail) {
+            message = Array.isArray(body.detail)
+              ? body.detail.map((d: any) => d.msg || d).join(", ")
+              : body.detail;
+          }
+        } catch {
+          // keep default message
+        }
+        toast.error(message);
+        return;
+      }
+
+      setAgents(agents.filter((a) => a.id !== id));
+      toast.success(`${agent.name} deleted`);
+    } catch (error: any) {
+      toast.error(error?.message || `Unexpected error deleting ${agent.name}`);
     }
   };
 

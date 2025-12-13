@@ -16,36 +16,6 @@ from app.services.openai_service import openai_service
 
 router = APIRouter()
 
-def _ensure_default_agent(session: Session, workspace_id: int) -> Optional[Agent]:
-    """Create a starter agent if a workspace has none."""
-    existing = session.exec(
-        select(Agent).where(Agent.workspace_id == workspace_id)
-    ).first()
-    if existing:
-        return None
-    agent = Agent(
-        workspace_id=workspace_id,
-        name="VoiceAI Demo Agent",
-        description="Starter agent automatically created for this workspace.",
-        agent_type="sales",
-        status="active",
-        voice="Nova",
-        language="en-US",
-        model="gpt-4",
-        script_summary="Greet users, gather context, and offer to schedule a meeting or share a quick summary.",
-        goal="Quickly assist callers and route them to the right next step.",
-        deployment_channels=["phone", "chat"],
-        voice_settings={"tone": "friendly", "pace": "steady"},
-        llm_settings={"temperature": 0.5, "top_p": 0.9},
-        capabilities={"languages": ["English"], "tasks": ["faq", "scheduling"]},
-        personality={"traits": ["helpful", "concise", "professional"]},
-        total_calls=0,
-    )
-    session.add(agent)
-    session.commit()
-    session.refresh(agent)
-    return agent
-
 
 class AgentChatRequest(SQLModel):
     message: str
@@ -98,10 +68,6 @@ async def list_agents(
         query = query.where(Agent.agent_type == agent_type)
     
     agents = session.exec(query).all()
-    if not agents:
-        created = _ensure_default_agent(session, workspace_id)
-        if created:
-            agents = [created]
     return agents
 
 
