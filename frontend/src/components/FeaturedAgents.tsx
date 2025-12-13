@@ -284,12 +284,56 @@ export function FeaturedAgents({ onDeploy }: FeaturedAgentsProps) {
         : null;
     const apiToken =
       storedToken || (import.meta.env.VITE_API_TOKEN as string | undefined);
-    const workspaceId = Number(import.meta.env.VITE_WORKSPACE_ID || 1);
-
     const base = apiBase.replace(/\/+$/, "");
+
+    const resolveWorkspaceId = async (): Promise<number | null> => {
+      const cachedId =
+        typeof window !== "undefined"
+          ? localStorage.getItem("voiceai_workspace_id")
+          : null;
+      if (cachedId) {
+        const parsed = Number(cachedId);
+        if (!Number.isNaN(parsed)) {
+          return parsed;
+        }
+      }
+
+      if (!apiToken) {
+        const fallback = Number(import.meta.env.VITE_WORKSPACE_ID || 1);
+        return fallback;
+      }
+
+      try {
+        const res = await fetch(`${base}/api/workspaces`, {
+          headers: {
+            Authorization: `Bearer ${apiToken}`,
+          },
+        });
+        if (!res.ok) {
+          return Number(import.meta.env.VITE_WORKSPACE_ID || 1);
+        }
+        const workspaces = await res.json();
+        if (!Array.isArray(workspaces) || workspaces.length === 0) {
+          toast.error("No workspaces found for your account.");
+          return null;
+        }
+        const id = Number(workspaces[0].id);
+        if (typeof window !== "undefined" && !Number.isNaN(id)) {
+          localStorage.setItem("voiceai_workspace_id", String(id));
+        }
+        return id;
+      } catch {
+        return Number(import.meta.env.VITE_WORKSPACE_ID || 1);
+      }
+    };
 
     try {
       setDeployingId(agent.id);
+      const workspaceId = await resolveWorkspaceId();
+      if (!workspaceId) {
+        setDeployingId(null);
+        return;
+      }
       const headers: HeadersInit = {
         "Content-Type": "application/json",
       };

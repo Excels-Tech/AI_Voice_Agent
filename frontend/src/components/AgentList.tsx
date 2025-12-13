@@ -60,21 +60,70 @@ export function AgentList({ onCreateNew }: AgentListProps) {
         : null;
     const apiToken =
       storedToken || (import.meta.env.VITE_API_TOKEN as string | undefined);
-    const workspaceId = Number(import.meta.env.VITE_WORKSPACE_ID || 1);
-
     const base = apiBase.replace(/\/+$/, "");
+
+    const resolveWorkspaceId = async (): Promise<number | null> => {
+      // Prefer a cached workspace id for the current user/session.
+      const cachedId =
+        typeof window !== "undefined"
+          ? localStorage.getItem("voiceai_workspace_id")
+          : null;
+      if (cachedId) {
+        const parsed = Number(cachedId);
+        if (!Number.isNaN(parsed)) {
+          return parsed;
+        }
+      }
+
+      // If we don't have a token, fall back to env/default.
+      if (!apiToken) {
+        const fallback = Number(import.meta.env.VITE_WORKSPACE_ID || 1);
+        return fallback;
+      }
+
+      // With a token, ask the backend which workspaces this user belongs to.
+      try {
+        const res = await fetch(`${base}/api/workspaces`, {
+          headers: {
+            Authorization: `Bearer ${apiToken}`,
+          },
+        });
+        if (!res.ok) {
+          return Number(import.meta.env.VITE_WORKSPACE_ID || 1);
+        }
+        const workspaces = await res.json();
+        if (!Array.isArray(workspaces) || workspaces.length === 0) {
+          toast.error("No workspaces found for your account.");
+          return null;
+        }
+        const id = Number(workspaces[0].id);
+        if (typeof window !== "undefined" && !Number.isNaN(id)) {
+          localStorage.setItem("voiceai_workspace_id", String(id));
+        }
+        return id;
+      } catch {
+        return Number(import.meta.env.VITE_WORKSPACE_ID || 1);
+      }
+    };
 
     const fetchAgents = async () => {
       try {
         setIsLoading(true);
+        const workspaceId = await resolveWorkspaceId();
+        if (!workspaceId) {
+          setAgents([]);
+          return;
+        }
+
         const headers: HeadersInit = {};
         if (apiToken) {
           headers["Authorization"] = `Bearer ${apiToken}`;
         }
 
-        const response = await fetch(`${base}/api/agents?workspace_id=${workspaceId}`, {
-          headers,
-        });
+        const response = await fetch(
+          `${base}/api/agents?workspace_id=${workspaceId}`,
+          { headers },
+        );
 
         if (!response.ok) {
           let message = `Failed to load agents (HTTP ${response.status})`;
