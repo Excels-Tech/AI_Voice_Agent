@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
@@ -39,16 +39,7 @@ interface AgentListProps {
 }
 
 export function AgentList({ onCreateNew }: AgentListProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [testAgent, setTestAgent] = useState<string | null>(null);
-  const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
-  const [editingAgent, setEditingAgent] = useState<any | null>(null);
-  const [analyticsAgent, setAnalyticsAgent] = useState<any | null>(null);
-  const [logsAgent, setLogsAgent] = useState<any | null>(null);
-  const [apiAgent, setApiAgent] = useState<any | null>(null);
-  const [advancedAgent, setAdvancedAgent] = useState<any | null>(null);
-  const [integrationsAgent, setIntegrationsAgent] = useState<any | null>(null);
-  const [agents, setAgents] = useState([
+  const demoAgents = [
     {
       id: 1,
       name: "Sales Agent",
@@ -93,7 +84,100 @@ export function AgentList({ onCreateNew }: AgentListProps) {
       language: "French",
       voice: "Onyx",
     },
-  ]);
+  ];
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [testAgent, setTestAgent] = useState<string | null>(null);
+  const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
+  const [editingAgent, setEditingAgent] = useState<any | null>(null);
+  const [analyticsAgent, setAnalyticsAgent] = useState<any | null>(null);
+  const [logsAgent, setLogsAgent] = useState<any | null>(null);
+  const [apiAgent, setApiAgent] = useState<any | null>(null);
+  const [advancedAgent, setAdvancedAgent] = useState<any | null>(null);
+  const [integrationsAgent, setIntegrationsAgent] = useState<any | null>(null);
+  const [agents, setAgents] = useState<any[]>(demoAgents);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const apiBase =
+      (import.meta.env.VITE_API_BASE as string | undefined) || window.location.origin;
+    const apiToken = import.meta.env.VITE_API_TOKEN as string | undefined;
+    const workspaceId = Number(import.meta.env.VITE_WORKSPACE_ID || 1);
+
+    if (!apiToken) {
+      // No token configured; stay in demo mode.
+      return;
+    }
+
+    const base = apiBase.replace(/\/+$/, "");
+
+    const fetchAgents = async () => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(
+          `${base}/api/agents?workspace_id=${workspaceId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${apiToken}`,
+            },
+          },
+        );
+
+        if (!response.ok) {
+          let message = `Failed to load agents (HTTP ${response.status})`;
+          try {
+            const body = await response.json();
+            if (body?.detail) {
+              message = Array.isArray(body.detail)
+                ? body.detail.map((d: any) => d.msg || d).join(", ")
+                : body.detail;
+            }
+          } catch {
+            // keep default message
+          }
+          toast.error(message);
+          return;
+        }
+
+        const data = await response.json();
+        const mapped = (data || []).map((agent: any) => {
+          const channels = agent.deployment_channels || [];
+          let deployment = "phone";
+          if (channels.includes("phone") && channels.includes("web-widget")) {
+            deployment = "both";
+          } else if (channels.includes("web-widget")) {
+            deployment = "widget";
+          } else if (channels.includes("phone")) {
+            deployment = "phone";
+          } else if (channels.length) {
+            deployment = channels[0];
+          }
+
+          return {
+            id: agent.id,
+            name: agent.name,
+            type: agent.agent_type,
+            status: agent.status,
+            calls: agent.total_calls ?? 0,
+            deployment,
+            phoneNumber: agent.phone_number || "N/A",
+            language: agent.language,
+            voice: agent.voice,
+          };
+        });
+
+        setAgents(mapped);
+      } catch (error: any) {
+        toast.error(
+          error?.message || "Unexpected error loading agents from API; using demo data.",
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchAgents();
+  }, []);
 
   const handleToggleStatus = (id: number) => {
     setAgents(agents.map(agent =>
